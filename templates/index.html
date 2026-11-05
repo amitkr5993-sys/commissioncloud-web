@@ -1,98 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
-
-<!-- 1. SPLASH SCREEN (पेज लोड होते ही 1.5 सेकंड के लिए दिखेगी) -->
-<div id="splash-screen" class="splash-screen">
-    <div class="splash-content">
-        <div class="splash-logo">Commission<span>Cloud</span></div>
-        <p class="splash-tagline">India's Smartest Cashback App</p>
-        <div class="splash-loader"></div>
-    </div>
-</div>
-
-<!-- 2. APP HEADER -->
 <header class="app-header">
-    <div class="header-left">
-        <i class="fa-solid fa-bars menu-icon"></i>
-        <div class="logo">Commission<span>Cloud</span></div>
-    </div>
-    <div class="header-icons">
+    <div class="logo"><strong>Commission<span>Cloud</span></strong></div>
+    <div class="header-icons" style="display:flex; align-items:center; gap:12px;">
         <i class="fa-regular fa-bell"></i>
-        <a href="/profile" class="profile-pill">
-            <span class="user-balance">₹ {{ "%.2f"|format(user.confirmed_balance) }}</span>
-            <i class="fa-regular fa-circle-user"></i>
+        <a href="/profile" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:6px;">
+            <span style="font-size:13px; font-weight:700; color:#16a34a;">₹ {{ "%.2f"|format(user.confirmed_balance) }}</span>
+            <i class="fa-regular fa-circle-user" style="font-size:18px;"></i>
         </a>
     </div>
 </header>
 
-<!-- 3. SEARCH BAR -->
-<div class="search-container">
-    <div class="search-box">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" placeholder="Search for brands, deals or products...">
+<div class="search-box">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Search for brands or products...">
+</div>
+
+<div class="banner-card">
+    <div class="banner-text">
+        <h3>Biggest Sales are LIVE!</h3>
+        <p>Get up to 90% Off + 7% Cashback</p>
     </div>
 </div>
 
-<main class="app-main-body">
-    <!-- 4. TOP CATEGORIES (हॉरीज़ॉन्टल स्क्रोलिंग आइकन्स) -->
-    <div class="categories-scroll">
-        <div class="cat-item">
-            <div class="cat-icon-wrap bg-orange"><i class="fa-solid fa-fire"></i></div>
-            <span>Top Deals</span>
-        </div>
-        <div class="cat-item">
-            <div class="cat-icon-wrap bg-blue"><i class="fa-solid fa-shirt"></i></div>
-            <span>Fashion</span>
-        </div>
-        <div class="cat-item">
-            <div class="cat-icon-wrap bg-purple"><i class="fa-solid fa-mobile-screen"></i></div>
-            <span>Mobiles</span>
-        </div>
-        <div class="cat-item">
-            <div class="cat-icon-wrap bg-pink"><i class="fa-solid fa-spa"></i></div>
-            <span>Beauty</span>
-        </div>
-        <div class="cat-item">
-            <div class="cat-icon-wrap bg-green"><i class="fa-solid fa-credit-card"></i></div>
-            <span>Banking</span>
-        </div>
+<h4 class="section-title">Top Partner Stores</h4>
+<div class="store-grid">
+    {% for s in stores %}
+    <div class="store-card">
+        <span class="badge">{{ s.badge }}</span>
+        <h4>{{ s.name }}</h4>
+        <p class="rate">{{ s.cashback_rate }}</p>
+        <a href="/go/{{ s.name }}" target="_blank" class="btn-shop">Shop Now &rarr;</a>
     </div>
+    {% endfor %}
+</div>
 
-    <!-- 5. PROMO BANNER CAROUSEL -->
-    <div class="banner-carousel">
-        <div class="banner-card gradient-primary">
-            <div class="banner-text">
-                <span class="banner-tag">BIG FESTIVE DEALS</span>
-                <h3>Biggest Sales are LIVE!</h3>
-                <p>Get up to 90% Off + Flat 7% Extra Cashback</p>
-            </div>
-            <div class="banner-badge">Verified</div>
-        </div>
-    </div>
-
-    <!-- 6. TOP STORES GRID (2-कॉलम ऐप कार्ड्स) -->
-    <div class="section-header">
-        <h4 class="section-title">Top Partner Stores</h4>
-        <span class="view-all">View All</span>
-    </div>
-
-    <div class="store-grid">
-        {% for s in stores %}
-        <div class="store-card">
-            <span class="badge">{{ s.badge or 'Sale Live' }}</span>
-            <div class="store-info">
-                <h4>{{ s.name }}</h4>
-                <p class="rate">{{ s.cashback_rate }}</p>
-            </div>
-            <a href="/go/{{ s.name }}" target="_blank" class="btn-shop">
-                Shop Now <i class="fa-solid fa-arrow-right"></i>
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-</main>
-
-<!-- 7. FIXED BOTTOM NAVIGATION BAR (CashKaro जैसा ऐप नेवबार) -->
 <nav class="bottom-nav">
     <a href="/" class="nav-item active">
         <i class="fa-solid fa-house"></i>
@@ -100,155 +42,15 @@
     </a>
     <a href="/refer" class="nav-item">
         <i class="fa-solid fa-share-nodes"></i>
-        <span>Refer & Earn</span>
+        <span>Refer</span>
     </a>
-    <a href="/earnings" class="nav-item wallet-highlight">
+    <a href="/earnings" class="nav-item">
         <i class="fa-solid fa-wallet"></i>
-        <span>₹ {{ "%.0f"|format(user.confirmed_balance) }}</span>
+        <span>Earnings</span>
     </a>
     <a href="/profile" class="nav-item">
         <i class="fa-solid fa-user"></i>
         <span>Profile</span>
     </a>
 </nav>
-
-<!-- CSS स्टाइल्स और स्प्लैश स्क्रीन टाइमर -->
-<style>
-/* SPLASH SCREEN */
-.splash-screen {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(135deg, #1e3a8a, #0284c7);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 99999;
-    color: white;
-    text-align: center;
-    transition: opacity 0.5s ease, visibility 0.5s;
-}
-.splash-screen.hidden {
-    opacity: 0;
-    visibility: hidden;
-}
-.splash-logo {
-    font-size: 32px; font-weight: 800; letter-spacing: -0.5px;
-}
-.splash-logo span { color: #f97316; }
-.splash-tagline { font-size: 13px; opacity: 0.9; margin-top: 6px; }
-.splash-loader {
-    width: 32px; height: 32px; margin: 24px auto 0;
-    border: 3px solid rgba(255,255,255,0.3);
-    border-top-color: #fff; border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* APP HEADER */
-.app-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 16px; background: #fff; position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.header-left { display: flex; align-items: center; gap: 12px; }
-.menu-icon { font-size: 18px; color: #475569; }
-.logo { font-size: 19px; font-weight: 800; color: #0f172a; }
-.logo span { color: #ea580c; }
-.profile-pill {
-    text-decoration: none; display: flex; align-items: center; gap: 6px;
-    background: #f1f5f9; padding: 4px 10px; border-radius: 20px; color: #334155;
-}
-.user-balance { font-size: 13px; font-weight: 700; color: #16a34a; }
-
-/* SEARCH BOX */
-.search-container { padding: 8px 16px; background: #fff; }
-.search-box {
-    display: flex; align-items: center; gap: 10px; background: #f8fafc;
-    border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 12px;
-}
-.search-box i { color: #94a3b8; font-size: 15px; }
-.search-box input {
-    border: none; background: transparent; width: 100%; outline: none; font-size: 14px;
-}
-
-/* MAIN BODY & CATEGORIES */
-.app-main-body { padding: 12px 16px 85px; }
-.categories-scroll {
-    display: flex; gap: 14px; overflow-x: auto; padding: 6px 0 14px;
-    scrollbar-width: none;
-}
-.categories-scroll::-webkit-scrollbar { display: none; }
-.cat-item { display: flex; flex-direction: column; align-items: center; min-width: 60px; font-size: 11px; font-weight: 600; color: #475569; }
-.cat-icon-wrap {
-    width: 46px; height: 46px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; margin-bottom: 6px; color: #fff; font-size: 16px;
-}
-.bg-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
-.bg-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-.bg-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); }
-.bg-pink { background: linear-gradient(135deg, #ec4899, #be185d); }
-.bg-green { background: linear-gradient(135deg, #10b981, #047857); }
-
-/* PROMO BANNER */
-.banner-card.gradient-primary {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    color: #fff; border-radius: 14px; padding: 18px; margin-bottom: 20px;
-    position: relative; overflow: hidden;
-}
-.banner-tag {
-    background: #ea580c; font-size: 10px; font-weight: 700;
-    padding: 2px 7px; border-radius: 4px; text-transform: uppercase;
-}
-.banner-card h3 { font-size: 17px; margin: 8px 0 4px; }
-.banner-card p { font-size: 12px; color: #cbd5e1; margin: 0; }
-
-/* STORES SECTION */
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.section-title { font-size: 15px; font-weight: 700; margin: 0; color: #0f172a; }
-.view-all { font-size: 12px; font-weight: 600; color: #ea580c; cursor: pointer; }
-
-.store-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-}
-.store-card {
-    background: #fff; border: 1px solid #f1f5f9; border-radius: 12px;
-    padding: 12px; display: flex; flex-direction: column; justify-content: space-between;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03); position: relative;
-}
-.store-card .badge {
-    align-self: flex-start; background: #fef2f2; color: #dc2626;
-    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;
-}
-.store-card h4 { font-size: 15px; margin: 0 0 4px; color: #1e293b; }
-.store-card .rate { font-size: 12px; font-weight: 700; color: #16a34a; margin: 0 0 10px; }
-.btn-shop {
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-    background: #ea580c; color: #fff; text-decoration: none; padding: 7px 10px;
-    border-radius: 8px; font-size: 12px; font-weight: 600;
-}
-
-/* BOTTOM NAVIGATION */
-.bottom-nav {
-    position: fixed; bottom: 0; left: 0; width: 100%; height: 62px;
-    background: #fff; display: flex; justify-content: space-around;
-    align-items: center; border-top: 1px solid #e2e8f0; z-index: 1000;
-}
-.nav-item {
-    display: flex; flex-direction: column; align-items: center;
-    text-decoration: none; color: #64748b; font-size: 11px; gap: 4px;
-}
-.nav-item.active { color: #ea580c; font-weight: 700; }
-.nav-item i { font-size: 17px; }
-.wallet-highlight span { color: #16a34a; font-weight: 700; }
-</style>
-
-<script>
-// Splash screen को 1.2 सेकंड बाद स्मूथली हाइड करने का स्क्रिप्ट
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
-            splash.classList.add('hidden');
-        }
-    }, 1200);
-});
-</script>
 {% endblock %}
