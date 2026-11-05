@@ -34,7 +34,9 @@ def inject_settings():
 # ==============================================================================
 # --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
 # ==============================================================================
-
+@app.route('/welcome')
+def welcome():
+    return render_template('onboarding.html')
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if "user_id" in session:
