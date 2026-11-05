@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Commission Cloud</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; margin: 0; padding: 25px; }
+        .container { max-width: 1150px; margin: auto; }
+        .card { background: white; padding: 22px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 25px; }
+        h2, h3 { margin-top: 0; color: #002244; }
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #444; }
+        .form-group input { padding: 9px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; width: 230px; }
+        .btn-primary { background: #002244; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-primary:hover { background: #003366; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; }
+        .badge-pending { background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .badge-paid, .badge-approved { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .btn-pay, .btn-approve { background: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .btn-pay:hover, .btn-approve:hover { background: #15803d; }
+        .btn-reject { background: #dc2626; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .btn-reject:hover { background: #b91c1c; }
+        .btn-confirm { background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .btn-confirm:hover { background: #0369a1; }
+        .utr-input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 140px; }
+        .comm-input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 105px; }
+        .flash-msg { background: #dcfce7; color: #166534; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="flash-msg">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- 1. Customer Support Settings -->
+    <div class="card">
+        <h3>Customer WhatsApp Support Settings</h3>
+        <p style="color:#64748b; font-size:14px; margin-top:-5px;">Updating this number will instantly reflect on the user profile support link.</p>
+        
+        <form action="/admin/update-support" method="POST" class="form-row">
+            <div class="form-group">
+                <label>WhatsApp Number (with country code, without +):</label>
+                <input type="text" name="support_whatsapp" value="{{ app_settings.get('support_whatsapp', '') }}" placeholder="91XXXXXXXXXX" required>
+            </div>
+            <button type="submit" class="btn-primary">Save Settings</button>
+        </form>
+    </div>
+
+    <!-- 2. Payout Request Management -->
+    <div class="card">
+        <h2>Commission Cloud - Withdrawal Requests</h2>
+        <p style="color:#64748b; font-size:14px; margin-top:-5px;">After initiating transfer via UPI/Bank, enter the Bank UTR / Transaction ID to confirm payout:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User Details</th>
+                    <th>Amount</th>
+                    <th>Payment Details</th>
+                    <th>Requested At</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in requests %}
+                <tr>
+                    <td>#{{ r.id }}</td>
+                    <td>
+                        <strong>{{ r.name }}</strong><br>
+                        <small style="color:#64748b;">{{ r.email }}</small>
+                    </td>
+                    <td style="color:#16a34a; font-size:16px;"><strong>₹{{ r.amount }}</strong></td>
+                    <td><code>{{ r.payment_details }}</code></td>
+                    <td><small style="color:#64748b;">{{ r.requested_at }}</small></td>
+                    <td>
+                        {% if (r.status|string|upper) == 'PAID' %}
+                            <span class="badge-paid">PAID</span><br>
+                            <small style="color:#64748b;">UTR: {{ r.utr_number }}</small>
+                        {% else %}
+                            <span class="badge-pending">PENDING</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if (r.status|string|upper) != 'PAID' %}
+                        <form action="/admin/pay-confirm/{{ r.id }}" method="POST" style="display:flex; gap:6px;">
+                            <input type="text" name="utr_number" placeholder="UTR/Txn ID" required class="utr-input">
+                            <button type="submit" class="btn-pay">Mark as Paid</button>
+                        </form>
+                        {% else %}
+                        <span style="color:#16a34a; font-weight:600;">Paid</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:25px; color:#94a3b8;">No payout requests found at the moment.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. Missing Cashback Claims Management (40% User / 60% Admin) -->
+    <div class="card">
+        <h2>Missing Cashback Claims</h2>
+        <p style="color:#64748b; font-size:14px; margin-top:-5px;">Enter the total commission received from affiliate network. The system automatically awards <strong>40% to user PENDING balance</strong>:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>User</th>
+                    <th>Store</th>
+                    <th>Order ID</th>
+                    <th>Order Amount</th>
+                    <th>Submitted At</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in claims %}
+                <tr>
+                    <td>#{{ c.id }}</td>
+                    <td>
+                        <strong>{{ c.name }}</strong><br>
+                        <small style="color:#64748b;">{{ c.email }}</small>
+                    </td>
+                    <td><strong>{{ c.store_name }}</strong></td>
+                    <td><code>{{ c.order_id }}</code></td>
+                    <td style="color:#002244; font-weight:600;">₹{{ c.order_amount }}</td>
+                    <td><small style="color:#64748b;">{{ c.submitted_at }}</small></td>
+                    <td>
+                        {% if (c.status|string|upper) == 'CONFIRMED' %}
+                            <span class="badge-approved" style="background:#bbf7d0; color:#14532d;">CONFIRMED</span>
+                        {% elif (c.status|string|upper) == 'APPROVED' %}
+                            <span class="badge-pending" style="background:#fef08a; color:#854d0e;">PENDING (TRACKED)</span>
+                        {% elif (c.status|string|upper) == 'REJECTED' %}
+                            <span class="badge-rejected">REJECTED</span>
+                        {% else %}
+                            <span class="badge-pending">UNDER REVIEW</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <!-- स्टेप 1: नया क्लेम (Approve या सीधे Reject) -->
+                        {% if (c.status|string|upper) != 'APPROVED' and (c.status|string|upper) != 'CONFIRMED' and (c.status|string|upper) != 'REJECTED' %}
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <form action="/admin/approve-claim/{{ c.id }}" method="POST" style="display:flex; gap:5px;">
+                                <input type="number" step="0.01" name="total_commission" placeholder="Total Comm (₹)" required class="comm-input">
+                                <button type="submit" class="btn-approve" title="Awards 40% to user PENDING balance">Approve (40%)</button>
+                            </form>
+                            <form action="/admin/reject-claim/{{ c.id }}" method="POST">
+                                <button type="submit" class="btn-reject" onclick="return confirm('क्या आप इस क्लेम को रिजेक्ट करना चाहते हैं?');">Reject</button>
+                            </form>
+                        </div>
+
+                        <!-- स्टेप 2: पहले से पेंडिंग (Move to Confirmed या Cancel & Cut) -->
+                        {% elif (c.status|string|upper) == 'APPROVED' %}
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap;">
+                            <!-- 60-90 दिन बाद कन्फर्म करने के लिए -->
+                            <form action="/admin/confirm-claim/{{ c.id }}" method="POST" style="display:flex; gap:4px;">
+                                <input type="number" step="0.01" name="cashback_amount" placeholder="User Amt (₹)" required class="comm-input" style="border-color:#0284c7; width:95px;">
+                                <button type="submit" class="btn-confirm" title="पेंडिंग से हटाकर विथड्रॉल बैलेंस में डालेगा">Move to Confirmed</button>
+                            </form>
+
+                            <!-- अगर फ्लिपकार्ट पर आर्डर कैंसिल हुआ, तो पेंडिंग से काटकर रिजेक्ट करें -->
+                            <form action="/admin/reject-claim/{{ c.id }}" method="POST" style="display:flex; gap:4px;">
+                                <input type="number" step="0.01" name="deduct_amount" placeholder="Cut ₹" style="width:65px; padding:6px; border:1px solid #dc2626; border-radius:4px; font-size:12px;" title="काटा जाने वाला पेंडिंग अमाउंट डालें">
+                                <button type="submit" class="btn-reject" onclick="return confirm('क्या आप इस क्लेम को रिजेक्ट करके पेंडिंग बैलेंस काटना चाहते हैं?');">Cancel & Cut</button>
+                            </form>
+                        </div>
+
+                        <!-- स्टेप 3: पूरी तरह कन्फर्म हो चुका -->
+                        {% elif (c.status|string|upper) == 'CONFIRMED' %}
+                            <span style="color:#16a34a; font-weight:600;">✅ Final Done</span>
+
+                        <!-- स्टेप 4: रिजेक्ट हो चुका -->
+                        {% else %}
+                            <span style="color:#dc2626; font-weight:600;">❌ Rejected</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align:center; padding:25px; color:#94a3b8;">No missing claims reported yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

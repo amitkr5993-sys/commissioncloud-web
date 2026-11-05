@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-header">
+    <a href="/profile" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
+    <h3>Payment & Withdrawal History</h3>
+    <div></div>
+</div>
+
+<!-- Summary Card -->
+<div class="card-box" style="margin-top:15px; background: linear-gradient(135deg, #002244 0%, #004488 100%); color:white; border-radius:10px; padding:18px;">
+    <p style="margin:0; font-size:13px; opacity:0.85;">Lifetime Withdrawal Records</p>
+    <h2 style="margin:6px 0 0; font-size:24px;">Total Requests: {{ history|length }}</h2>
+</div>
+
+<h4 class="section-title" style="margin:20px 0 10px; padding:0 5px; color:#334155;">All Withdrawal Records</h4>
+
+<div style="padding: 0 5px;">
+    {% for h in history %}
+    <div style="background:white; border-radius:10px; padding:15px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.05); border-left: 5px solid {% if h.status == 'PAID' %}#16a34a{% else %}#e67e22{% endif %};">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:18px; color:#002244;">₹ {{ "%.2f"|format(h.amount) }}</strong>
+            {% if h.status == 'PAID' %}
+                <span style="background:#dcfce7; color:#166534; padding:4px 10px; border-radius:20px; font-weight:bold; font-size:12px;">
+                    PAID
+                </span>
+            {% else %}
+                <span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:20px; font-weight:bold; font-size:12px;">
+                    PENDING
+                </span>
+            {% endif %}
+        </div>
+
+        <div style="font-size:13px; color:#475569; margin-top:10px; line-height:1.7;">
+            <div><strong>Method / Details:</strong> {{ h.payment_details }}</div>
+            <div><strong>Requested Date:</strong> {{ h.requested_at }}</div>
+            {% if h.processed_at %}
+            <div><strong>Processed Date:</strong> {{ h.processed_at }}</div>
+            {% endif %}
+
+            {% if h.utr_number %}
+            <div style="margin-top:8px; padding:8px 12px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:6px; color:#1d4ed8; font-weight:600;">
+                Bank UTR / Txn ID: <span style="letter-spacing:0.8px;">{{ h.utr_number }}</span>
+            </div>
+            {% else %}
+            <div style="margin-top:6px; color:#e67e22; font-size:12px; font-weight:500;">
+                * Amount will be credited to your account within 24 hours.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card-box" style="text-align:center; padding:35px 20px; color:#94a3b8; background:white; border-radius:10px;">
+        <i class="fa-solid fa-receipt" style="font-size:38px; margin-bottom:10px; color:#cbd5e1;"></i>
+        <p style="margin:0; font-size:14px;">No withdrawal history found yet.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

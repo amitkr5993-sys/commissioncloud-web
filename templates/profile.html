@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-header">
+    <a href="/" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
+    <h3>Profile & Account</h3>
+    <div></div>
+</div>
+
+<!-- User Profile Details -->
+<div class="card-box" style="margin-top:15px;">
+    <div style="display:flex; align-items:center; gap:15px;">
+        <div style="width:50px; height:50px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:22px; color:#475569;">
+            <i class="fa-solid fa-user"></i>
+        </div>
+        <div>
+            <h3 style="margin:0; font-size:18px;">{{ user.name }}</h3>
+            <p style="margin:3px 0 0; color:#64748b; font-size:13px;">
+                {% if user.phone %}+91 {{ user.phone }}{% else %}{{ user.email }}{% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Wallet Balance & Withdraw Button -->
+<div class="card-box">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <small style="color:#64748b; font-size:12px;">Confirmed Cashback</small>
+            <h2 style="margin:2px 0 0; color:#16a34a; font-size:22px;">₹ {{ "%.2f"|format(user.confirmed_balance) }}</h2>
+            <small style="color:#94a3b8; font-size:11px;">Pending: ₹ {{ "%.2f"|format(user.pending_balance) }}</small>
+        </div>
+        <a href="/withdraw" class="btn-action" style="text-decoration:none; padding:8px 18px; border-radius:6px; background:#002244; color:white; font-weight:600; font-size:14px;">Withdraw</a>
+    </div>
+</div>
+
+<!-- Cashback, Rewards & History Menu -->
+<h4 class="section-title">Cashback & Payments</h4>
+<div class="card-box" style="padding:0 15px;">
+    <a href="/earnings" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#333; border-bottom:1px solid #f1f5f9;">
+        <span><i class="fa-solid fa-wallet" style="margin-right:12px; color:#002244;"></i> My Earnings</span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+    
+    <a href="/payment-history" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#333; border-bottom:1px solid #f1f5f9;">
+        <span><i class="fa-solid fa-clock-rotate-left" style="margin-right:12px; color:#002244;"></i> Payment & Withdrawal History</span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+
+    <a href="/missing" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#333; border-bottom:1px solid #f1f5f9;">
+        <span><i class="fa-solid fa-receipt" style="margin-right:12px; color:#002244;"></i> Missing Cashback</span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+    
+    <a href="/refer" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#333;">
+        <span><i class="fa-solid fa-user-plus" style="margin-right:12px; color:#002244;"></i> Refer & Earn</span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+</div>
+
+<!-- Support & Help Menu -->
+<h4 class="section-title">Support & Help</h4>
+<div class="card-box" style="padding:0 15px;">
+    <a href="https://wa.me/{{ app_settings.get('support_whatsapp', '') }}?text=Hello%20Support,%20I%20need%20help%20with%20my%20cashback" target="_blank" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#333; border-bottom:1px solid #f1f5f9;">
+        <span style="display:flex; align-items:center;">
+            <i class="fa-brands fa-whatsapp" style="margin-right:12px; color:#25d366; font-size:18px;"></i> WhatsApp Support
+        </span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+
+    <!-- Logout Link -->
+    <a href="/logout" onclick="return confirm('Are you sure you want to log out?');" style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; text-decoration:none; color:#dc2626;">
+        <span style="display:flex; align-items:center; font-weight:600;">
+            <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right:12px; color:#dc2626;"></i> Log Out
+        </span>
+        <i class="fa-solid fa-chevron-right" style="color:#cbd5e1; font-size:12px;"></i>
+    </a>
+</div>
+
+<!-- Quick Admin Panel Link -->
+<div style="margin-top:20px; padding:0 5px; text-align:center;">
+    <a href="/admin/payouts" style="font-size:13px; color:#64748b; text-decoration:none;">
+        <i class="fa-solid fa-shield-halved"></i> Open Admin Panel
+    </a>
+</div>
+{% endblock %}

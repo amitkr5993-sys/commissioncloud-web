@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-header">
+    <a href="/" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
+    <h3>Refer & Earn ₹50 Cash</h3>
+    <div></div>
+</div>
+
+<!-- Main Banner Card -->
+<div class="card-box" style="margin-top:15px; text-align:center; background: linear-gradient(135deg, #002244 0%, #004488 100%); color:white; padding:25px 15px; border-radius:12px;">
+    <div style="width:60px; height:60px; background:rgba(255,255,255,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:26px;">
+        🎁
+    </div>
+    <h2 style="margin:0 0 8px; font-size:24px;">Earn Flat ₹50 Cash per Friend</h2>
+    <p style="margin:0; font-size:13px; opacity:0.9;">When your referred friend earns ₹50 or more confirmed cashback, you get a flat ₹50 bonus!</p>
+</div>
+
+<!-- Referral Link Box -->
+<div class="card-box" style="margin-top:15px; padding:20px 15px;">
+    <label style="display:block; font-size:13px; font-weight:600; margin-bottom:8px; color:#475569;">Your Personal Referral Link:</label>
+    <div style="display:flex; gap:8px;">
+        <input type="text" id="refLink" value="{{ referral_url }}" readonly class="ref-input" style="flex:1; background:#f8fafc; font-weight:600; color:#002244; box-sizing:border-box;">
+        <button onclick="copyReferralLink()" class="btn-action" style="background:#002244; padding:0 18px; border-radius:6px; cursor:pointer;">Copy</button>
+    </div>
+
+    <!-- WhatsApp Share Button -->
+    <a href="https://api.whatsapp.com/send?text=Shop%20via%20my%20link%20on%20Commission%20Cloud%20and%20earn%20extra%20cashback%20on%20Flipkart%20and%20Amazon!%20Join%20now:%20{{ referral_url }}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; background:#25d366; color:white; text-decoration:none; padding:12px; border-radius:8px; font-weight:bold; margin-top:15px;">
+        <i class="fa-brands fa-whatsapp" style="font-size:20px;"></i> Share on WhatsApp
+    </a>
+</div>
+
+<!-- How It Works Rules -->
+<h4 class="section-title" style="margin-top:20px;">How It Works:</h4>
+<div class="card-box" style="padding:15px;">
+    <div style="display:flex; gap:12px; margin-bottom:15px;">
+        <div style="font-weight:bold; color:#002244; font-size:16px;">1.</div>
+        <div style="font-size:13px; color:#475569;">
+            <strong>Invite Friends:</strong> Share your unique referral link with friends and family.
+        </div>
+    </div>
+    <div style="display:flex; gap:12px; margin-bottom:15px;">
+        <div style="font-weight:bold; color:#002244; font-size:16px;">2.</div>
+        <div style="font-size:13px; color:#475569;">
+            <strong>They Shop:</strong> Your friend signs up and shops at partner stores (Flipkart, Myntra, etc.).
+        </div>
+    </div>
+    <div style="display:flex; gap:12px;">
+        <div style="font-weight:bold; color:#16a34a; font-size:16px;">3.</div>
+        <div style="font-size:13px; color:#475569;">
+            <strong>₹50 Cash Reward:</strong> As soon as your friend's confirmed cashback reaches ₹50, a <strong>flat ₹50 referral bonus</strong> will be credited directly to your account!
+        </div>
+    </div>
+</div>
+
+<script>
+function copyReferralLink() {
+    var copyText = document.getElementById("refLink");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(copyText.value);
+    alert("Referral link copied to clipboard!");
+}
+</script>
+{% endblock %}

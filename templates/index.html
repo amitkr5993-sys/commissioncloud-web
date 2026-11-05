@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="app-header">
+    <div class="logo"><strong>Commission<span>Cloud</span></strong></div>
+    <div class="header-icons" style="display:flex; align-items:center; gap:12px;">
+        <i class="fa-regular fa-bell"></i>
+        <a href="/profile" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:6px;">
+            <span style="font-size:13px; font-weight:700; color:#16a34a;">₹ {{ "%.2f"|format(user.confirmed_balance) }}</span>
+            <i class="fa-regular fa-circle-user" style="font-size:18px;"></i>
+        </a>
+    </div>
+</header>
+
+<div class="search-box">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Search for brands or products...">
+</div>
+
+<div class="banner-card">
+    <div class="banner-text">
+        <h3>Biggest Sales are LIVE!</h3>
+        <p>Get up to 90% Off + 7% Cashback</p>
+    </div>
+</div>
+
+<h4 class="section-title">Top Partner Stores</h4>
+<div class="store-grid">
+    {% for s in stores %}
+    <div class="store-card">
+        <span class="badge">{{ s.badge }}</span>
+        <h4>{{ s.name }}</h4>
+        <p class="rate">{{ s.cashback_rate }}</p>
+        <a href="/go/{{ s.name }}" target="_blank" class="btn-shop">Shop Now &rarr;</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

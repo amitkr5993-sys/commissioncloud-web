@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login or Signup - Commission Cloud</title>
+    <!-- Google Identity Services SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #002244;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        @media (min-width: 600px) {
+            body { align-items: center; background: #eef2f6; }
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            padding: 32px 24px;
+            box-shadow: 0 -4px 25px rgba(0,0,0,0.15);
+        }
+        @media (min-width: 600px) {
+            .auth-container {
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 34, 68, 0.1);
+            }
+        }
+        .brand-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .brand-badge {
+            display: inline-block;
+            background: #ff6f00;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .brand-title {
+            color: #002244;
+            font-size: 24px;
+            font-weight: 800;
+        }
+        .brand-subtitle {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .flash-box {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        .flash-error { background: #fee2e2; color: #991b1b; }
+        .flash-success { background: #dcfce7; color: #166534; }
+        .flash-info { background: #e0f2fe; color: #0369a1; }
+
+        .google-btn-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+        .std-input {
+            width: 100%;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .phone-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .country-prefix {
+            padding: 12px 14px;
+            background: #f8fafc;
+            border-right: 1.5px solid #cbd5e1;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+        .phone-input {
+            width: 100%;
+            border: none;
+            padding: 12px;
+            font-size: 14px;
+            outline: none;
+        }
+        .phone-wrapper:focus-within, .std-input:focus {
+            border-color: #002244;
+        }
+
+        .ref-banner {
+            background: #f0fdf4;
+            border: 1px dashed #22c55e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            font-size: 12px;
+            color: #15803d;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: #002244;
+            color: #ffffff;
+            border: none;
+            padding: 13px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 34, 68, 0.2);
+            transition: opacity 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.95; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 22px 0;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .divider span {
+            padding: 0 12px;
+        }
+
+        .terms-note {
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 18px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="brand-header">
+        <span class="brand-badge">India's Cashback Hub</span>
+        <h2 class="brand-title">Commission Cloud</h2>
+        <p class="brand-subtitle">Instant Login & Access</p>
+    </div>
+
+    <!-- Alert Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div class="flash-box flash-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Auto-filled Referral Banner -->
+    {% if auto_ref %}
+    <div class="ref-banner">
+        🎉 Referral Applied: <strong>{{ auto_ref }}</strong>
+    </div>
+    {% endif %}
+
+    <!-- 1. GOOGLE SIGN-IN (TOP PRIMARY OPTION) -->
+    <div class="google-btn-wrapper">
+        <div id="g_id_onload"
+             data-client_id="81183350397-dqqhud2icopqk96e9c6kuqjipljscj99.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="continue_with"
+             data-size="large"
+             data-logo_alignment="left"
+             data-width="390">
+        </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="divider"><span>OR LOGIN WITH MOBILE</span></div>
+
+    <!-- 2. PHONE + PASSWORD LOGIN -->
+    <form action="/login{% if auto_ref %}?ref={{ auto_ref }}{% endif %}" method="POST">
+        <input type="hidden" name="login_type" value="phone">
+        <input type="hidden" name="referral_code" value="{{ auto_ref }}">
+
+        <div class="input-group">
+            <label>Mobile Number</label>
+            <div class="phone-wrapper">
+                <span class="country-prefix">+91</span>
+                <input type="tel" name="phone" placeholder="Enter 10-digit number" pattern="[0-9]{10}" maxlength="10" required class="phone-input">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Enter your password" required class="std-input">
+        </div>
+
+        <button type="submit" class="btn-primary">Login with Phone</button>
+    </form>
+
+    <p class="terms-note">
+        By continuing, you agree to our Terms of Service & Privacy Policy.
+    </p>
+</div>
+
+<script>
+function handleCredentialResponse(response) {
+    fetch("/api/google-login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            credential: response.credential,
+            referral_code: "{{ auto_ref }}"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            window.location.href = "/";
+        } else {
+            alert(data.message || "Google Login failed");
+        }
+    })
+    .catch(err => {
+        console.error("Google Auth Error:", err);
+        alert("Server connection failed.");
+    });
+}
+</script>
+
+</body>
+</html>

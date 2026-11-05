@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-header">
+    <a href="/profile" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
+    <h3>Withdraw Cashback</h3>
+    <div></div>
+</div>
+
+<!-- Wallet Balance Card -->
+<div class="card-box" style="margin-top:15px; border-left: 4px solid #16a34a;">
+    <p style="margin:0 0 5px; color:#64748b; font-size:13px; font-weight:500;">Available Confirmed Balance</p>
+    <h2 style="margin:0; color:#16a34a; font-size:26px;">₹ {{ user.confirmed_balance }}</h2>
+    <small style="color:#94a3b8; display:block; margin-top:4px;">Minimum Withdrawal Limit: ₹{{ min_limit }}</small>
+</div>
+
+<!-- Withdrawal Form -->
+<div class="card-box">
+    <form action="/withdraw" method="POST" id="withdrawForm">
+        <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:#334155;">Withdrawal Amount (₹):</label>
+        <input type="number" name="amount" min="{{ min_limit }}" max="{{ user.confirmed_balance }}" step="1" required class="ref-input" style="width:100%; box-sizing:border-box; margin-bottom:15px;" placeholder="e.g. {{ min_limit|int }}">
+
+        <label style="display:block; font-size:13px; font-weight:600; margin-bottom:8px; color:#334155;">Select Payment Method:</label>
+        <div style="display:flex; gap:25px; margin-bottom:15px;">
+            <label style="font-size:14px; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:6px;">
+                <input type="radio" id="pay_upi" name="payout_method" value="UPI" checked onclick="toggleMethod('upi')"> UPI
+            </label>
+            <label style="font-size:14px; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:6px;">
+                <input type="radio" id="pay_bank" name="payout_method" value="BANK" onclick="toggleMethod('bank')"> Bank Transfer
+            </label>
+        </div>
+
+        <!-- UPI Field -->
+        <div id="upi_box">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:#334155;">Enter UPI ID:</label>
+            <input type="text" id="upi_input" name="upi_id" placeholder="username@oksbi / 9876543210@paytm" required class="ref-input" style="width:100%; box-sizing:border-box;">
+        </div>
+
+        <!-- Bank Fields -->
+        <div id="bank_box" style="display:none;">
+            <div style="margin-bottom:10px;">
+                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px; color:#334155;">Account Holder Name:</label>
+                <input type="text" id="bank_name" name="holder_name" placeholder="Name as per bank records" class="ref-input" style="width:100%; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px; color:#334155;">Bank Account Number:</label>
+                <input type="text" id="bank_acc" name="account_number" placeholder="Enter bank account number" class="ref-input" style="width:100%; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px; color:#334155;">IFSC Code:</label>
+                <input type="text" id="bank_ifsc" name="ifsc_code" placeholder="e.g. SBIN0001234" class="ref-input" style="width:100%; box-sizing:border-box;">
+            </div>
+        </div>
+
+        <button type="submit" class="btn-action full-width" style="margin-top:20px; background:#16a34a; padding:13px; font-size:15px; border-radius:6px; font-weight:bold; cursor:pointer;">
+            Withdraw Now
+        </button>
+    </form>
+</div>
+
+<!-- Recent Withdrawal History -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding:0 5px;">
+    <h4 class="section-title" style="margin:0;">Recent Withdrawals</h4>
+    <a href="/payment-history" style="font-size:13px; color:#0044ff; text-decoration:none; font-weight:600;">View All &rarr;</a>
+</div>
+
+<div class="card-box" style="padding:10px 15px;">
+    {% for h in history %}
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:10px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:17px; color:#002244;">₹ {{ h.amount }}</strong>
+            {% if h.status == 'PAID' %}
+                <span style="background:#dcfce7; color:#166534; padding:4px 10px; border-radius:20px; font-weight:bold; font-size:12px;">
+                    PAID
+                </span>
+            {% else %}
+                <span style="background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:20px; font-weight:bold; font-size:12px;">
+                    PENDING
+                </span>
+            {% endif %}
+        </div>
+
+        <div style="font-size:13px; color:#475569; margin-top:8px; line-height:1.6;">
+            <div><strong>Details:</strong> {{ h.payment_details }}</div>
+            <div><strong>Date:</strong> {{ h.requested_at }}</div>
+            
+            {% if h.utr_number %}
+            <div style="margin-top:6px; padding:6px 10px; background:#eff6ff; border:1px dashed #3b82f6; border-radius:5px; color:#1d4ed8; font-weight:600;">
+                Bank UTR / Txn ID: <span style="letter-spacing:0.5px;">{{ h.utr_number }}</span>
+            </div>
+            {% else %}
+            <div style="margin-top:5px; color:#e67e22; font-size:12px;">
+                * Amount will be credited to your account within 24 hours.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; text-align:center; margin:15px 0; font-size:14px;">No previous withdrawal records found.</p>
+    {% endfor %}
+</div>
+
+<script>
+function toggleMethod(type) {
+    const upiBox = document.getElementById('upi_box');
+    const bankBox = document.getElementById('bank_box');
+    const upiInput = document.getElementById('upi_input');
+    const bankName = document.getElementById('bank_name');
+    const bankAcc = document.getElementById('bank_acc');
+    const bankIfsc = document.getElementById('bank_ifsc');
+
+    if(type === 'upi') {
+        upiBox.style.display = 'block';
+        bankBox.style.display = 'none';
+        upiInput.required = true;
+        bankName.required = false;
+        bankAcc.required = false;
+        bankIfsc.required = false;
+    } else {
+        upiBox.style.display = 'none';
+        bankBox.style.display = 'block';
+        upiInput.required = false;
+        bankName.required = true;
+        bankAcc.required = true;
+        bankIfsc.required = true;
+    }
+}
+</script>
+{% endblock %}

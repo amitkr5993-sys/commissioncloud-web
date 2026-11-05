@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-header">
+    <a href="/" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
+    <h3>Missing Cashback?</h3>
+    <div></div>
+</div>
+
+<div class="card-box" style="margin-top:15px;">
+    <p style="font-size:14px; color:#475569; margin:0;">
+        If you shopped via Commission Cloud and your cashback did not track within 72 hours, please submit your order details below.
+    </p>
+</div>
+
+<div class="card-box">
+    <form action="/missing" method="POST">
+        <div style="margin-bottom:15px;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Select Store:</label>
+            <select name="store_name" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; background:#fff;">
+                {% for s in stores %}
+                <option value="{{ s.name }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Order ID (Flipkart / Myntra):</label>
+            <input type="text" name="order_id" placeholder="OD1234567890" required class="ref-input" style="width:100%; box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Total Order Amount (₹):</label>
+            <input type="number" step="0.01" name="amount" placeholder="e.g. 1499" required class="ref-input" style="width:100%; box-sizing:border-box;">
+        </div>
+
+        <button type="submit" class="btn-action full-width" style="padding:12px; background:#002244;">Submit Claim</button>
+    </form>
+</div>
+
+<h4 class="section-title">Claim History</h4>
+<div class="card-box">
+    {% for c in claims %}
+    <div style="border-bottom:1px solid #eee; padding:10px 0;">
+        <div class="row">
+            <strong>{{ c.store_name }} - ₹{{ c.order_amount }}</strong>
+            <span style="font-weight:bold; color:#e67e22;">{{ c.status }}</span>
+        </div>
+        <small style="color:#64748b;">Order ID: {{ c.order_id }}</small><br>
+        <small style="color:#94a3b8;">Date: {{ c.submitted_at }}</small>
+    </div>
+    {% else %}
+    <p style="color:#94a3b8; margin:0;">No claims recorded yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

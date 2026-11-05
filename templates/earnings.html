@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="earnings-header">
+    <h2>All Time Earnings</h2>
+    <h1>₹ {{ user.confirmed_balance + user.pending_balance }}</h1>
+    <div class="earnings-sub">
+        <div><strong>₹ {{ user.confirmed_balance }}</strong><br><small>Cashback</small></div>
+        <div><strong>₹ {{ user.pending_balance }}</strong><br><small>Pending</small></div>
+        <div><strong>₹ 0.0</strong><br><small>Referral</small></div>
+    </div>
+</div>
+
+<div class="card-box">
+    <div class="row">
+        <div>
+            <h4 style="color:#28a745;">Confirmed: ₹ {{ user.confirmed_balance }}</h4>
+            <small>Ready to transfer to Bank</small>
+        </div>
+        <a href="/withdraw" class="btn-action" style="text-decoration:none; display:inline-block; text-align:center;">Withdraw</a>
+    </div>
+    <hr>
+    <div class="row">
+        <div>
+            <h4 style="color:#e67e22;">Pending: ₹ {{ user.pending_balance }}</h4>
+            <small>Expected in 26m - 72h</small>
+        </div>
+    </div>
+</div>
+
+<h4 class="section-title">Recent Clicks</h4>
+<ul class="activity-list">
+    {% for c in clicks %}
+    <li>Visited <strong>{{ c.store_name }}</strong> <small>{{ c.clicked_at }}</small></li>
+    {% else %}
+    <li>No clicks recorded yet.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

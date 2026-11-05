@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - Commission Cloud</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="mobile-container">
+        <header class="app-header">
+            <a href="/" class="back-link">⬅ Home</a>
+            <h3>My Wallet</h3>
+        </header>
+
+        <div class="balance-card">
+            <p>Withdrawable Balance</p>
+            <h1>₹{{ "%.2f"|format(user.available_balance) }}</h1>
+            <small>Pending Cashback: ₹{{ "%.2f"|format(user.pending_balance) }}</small>
+        </div>
+
+        <div class="withdraw-section">
+            <h4>Withdraw Instantly via UPI</h4>
+            <form action="/withdraw" method="POST">
+                <input type="text" name="upi_id" placeholder="PhonePe / GPay UPI ID" value="{{ user.upi_id }}" required>
+                {% if user.available_balance >= 50.0 %}
+                <button type="submit" class="withdraw-btn">Withdraw to UPI</button>
+                {% else %}
+                <button type="button" class="withdraw-btn disabled" disabled>Minimum Withdrawal ₹50</button>
+                {% endif %}
+            </form>
+        </div>
+
+        <h4>Recent Withdrawals</h4>
+        <div class="history-list">
+            {% for p in payouts %}
+            <div class="history-item">
+                <span>₹{{ p.amount }} ({{ p.upi_id }})</span>
+                <span class="status-badge {{ p.status.lower() }}">{{ p.status }}</span>
+            </div>
+            {% else %}
+            <p class="empty-txt">No withdrawal requests found.</p>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
