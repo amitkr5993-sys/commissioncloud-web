@@ -1,1 +1,173 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="onboarding-wrapper">
+    <!-- स्लाइडर कंटेनर -->
+    <div class="slides-container" id="slidesContainer">
+        <!-- स्लाइड 1 -->
+        <div class="slide active">
+            <div class="slide-img">
+                <i class="fa-solid fa-bag-shopping" style="font-size: 85px; color: #f36c21;"></i>
+            </div>
+            <h2>Shop at Top Stores</h2>
+            <p>Flipkart, Myntra, Amazon और 500+ स्टोर्स से अपनी पसंद की शॉपिंग करें।</p>
+        </div>
 
+        <!-- स्लाइड 2 -->
+        <div class="slide">
+            <div class="slide-img">
+                <i class="fa-solid fa-hand-holding-dollar" style="font-size: 85px; color: #00b894;"></i>
+            </div>
+            <h2>Get Real Cashback</h2>
+            <p>हर खरीदारी पर पाएं फ्लैट एक्स्ट्रा कैशबैक, जो सीधे आपके वॉलेट में जुड़ेगा।</p>
+        </div>
+
+        <!-- स्लाइड 3 -->
+        <div class="slide">
+            <div class="slide-img">
+                <i class="fa-solid fa-building-columns" style="font-size: 85px; color: #0044ff;"></i>
+            </div>
+            <h2>Transfer to Bank</h2>
+            <p>अपने कन्फ़र्म्ड कैशबैक को एक क्लिक में सीधे अपने बैंक अकाउंट या UPI में ट्रांसफर करें।</p>
+        </div>
+    </div>
+
+    <!-- डॉट्स इंडिकेटर -->
+    <div class="dots-wrapper">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+    </div>
+
+    <!-- नीचे के एक्शन बटन्स -->
+    <div class="onboarding-actions">
+        <button id="nextBtn" class="btn-primary" onclick="nextSlide()">Next &rarr;</button>
+        <a href="/login" class="skip-btn">Skip to Login</a>
+    </div>
+</div>
+
+<style>
+.onboarding-wrapper {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 40px 24px;
+    text-align: center;
+    background: #ffffff;
+}
+
+.slides-container {
+    width: 100%;
+    margin-top: 30px;
+}
+
+.slide {
+    display: none;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.slide.active {
+    display: block;
+}
+
+.slide-img {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+
+.slide h2 {
+    font-size: 22px;
+    color: #002244;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.slide p {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.dots-wrapper {
+    display: flex;
+    gap: 8px;
+    margin: 30px 0;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    background: #cbd5e1;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.dot.active {
+    width: 24px;
+    background: #0044ff;
+    border-radius: 12px;
+}
+
+.onboarding-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-primary {
+    background: #0044ff;
+    color: #ffffff;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+}
+
+.skip-btn {
+    text-decoration: none;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+let currentSlide = 0;
+const slides = document.querySelectorAll('.slide');
+const dots = document.querySelectorAll('.dot');
+const nextBtn = document.getElementById('nextBtn');
+
+function nextSlide() {
+    slides[currentSlide].classList.remove('active');
+    dots[currentSlide].classList.remove('active');
+    
+    currentSlide++;
+    
+    if (currentSlide < slides.length) {
+        slides[currentSlide].classList.add('active');
+        dots[currentSlide].classList.add('active');
+        if (currentSlide === slides.length - 1) {
+            nextBtn.innerText = "Get Started 🚀";
+        }
+    } else {
+        // आखिरी स्लाइड के बाद सीधा लॉगिन/साइनअप पेज पर ले जाएगा
+        window.location.href = '/login';
+    }
+}
+</script>
+{% endblock %}
