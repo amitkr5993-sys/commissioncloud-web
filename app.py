@@ -35,12 +35,14 @@ def inject_settings():
 # --- LANDING & ONBOARDING ROUTES ---
 # ==============================================================================
 
-# मुख्य डोमेन खोलते ही सीधे Onboarding (Next-Next वाला) पेज खुलेगा
+# अगर यूज़र पहले से लॉगिन है तो सीधे Dashboard खुलेगा, नहीं तो Onboarding
 @app.route('/')
 def home():
+    if "user_id" in session:
+        return redirect("/dashboard")
     return render_template('onboarding.html')
 
-# अगर किसी के पास पुराना /welcome लिंक है, तो वह सीधे होमपेज पर रीडायरेक्ट हो जाएगा
+# अगर किसी के पास पुराना /welcome लिंक है, तो वह सीधे होमपेज पर जाएगा
 @app.route('/welcome')
 def welcome():
     return redirect('/')
@@ -588,7 +590,11 @@ def update_support():
 
     flash("WhatsApp support number updated successfully!", "success")
     return redirect("/admin/payouts")
-    # --- LEGAL ROUTES ---
+
+# ==============================================================================
+# --- LEGAL ROUTES ---
+# ==============================================================================
+
 @app.route('/privacy-policy')
 def privacy_policy():
     return render_template('privacy-policy.html')
