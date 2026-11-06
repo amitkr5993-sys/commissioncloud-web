@@ -32,15 +32,27 @@ def inject_settings():
     return dict(app_settings=settings_dict)
 
 # ==============================================================================
-# --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
+# --- LANDING & ONBOARDING ROUTES ---
 # ==============================================================================
+
+# मुख्य डोमेन खोलते ही सीधे Onboarding (Next-Next वाला) पेज खुलेगा
+@app.route('/')
+def home():
+    return render_template('onboarding.html')
+
+# अगर किसी के पास पुराना /welcome लिंक है, तो वह सीधे होमपेज पर रीडायरेक्ट हो जाएगा
 @app.route('/welcome')
 def welcome():
-    return render_template('onboarding.html')
+    return redirect('/')
+
+# ==============================================================================
+# --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
+# ==============================================================================
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if "user_id" in session:
-        return redirect("/")
+        return redirect("/dashboard")
 
     ref_code = request.args.get("ref", "").strip()
 
@@ -62,7 +74,7 @@ def login():
                 session["user_id"] = user["id"]
                 conn.close()
                 flash(f"Welcome back, {user['name']}!", "success")
-                return redirect("/")
+                return redirect("/dashboard")
             else:
                 referrer = None
                 if referral_input:
@@ -85,7 +97,7 @@ def login():
 
                 session["user_id"] = new_id
                 flash("Account created instantly! Welcome to Commission Cloud.", "success")
-                return redirect("/")
+                return redirect("/dashboard")
 
         # 2. Phone + Password Flow
         elif login_type == "phone":
@@ -103,7 +115,7 @@ def login():
                     session["user_id"] = user["id"]
                     conn.close()
                     flash(f"Welcome back, {user['name']}!", "success")
-                    return redirect("/")
+                    return redirect("/dashboard")
                 else:
                     conn.close()
                     flash("Incorrect password. Please try again.", "error")
@@ -130,7 +142,7 @@ def login():
 
                 session["user_id"] = new_id
                 flash("Account created successfully! Welcome to Commission Cloud.", "success")
-                return redirect("/")
+                return redirect("/dashboard")
 
     return render_template("login.html", auto_ref=ref_code)
 
@@ -192,11 +204,12 @@ def logout():
 
 
 # ==============================================================================
-# --- MAIN APPLICATION ROUTES ---
+# --- MAIN APPLICATION DASHBOARD (CashKaro Style Homepage) ---
 # ==============================================================================
 
-@app.route("/")
-def home():
+@app.route("/dashboard")
+@app.route("/home")
+def dashboard():
     if "user_id" not in session:
         return redirect("/login")
 
@@ -577,4 +590,4 @@ def update_support():
     return redirect("/admin/payouts")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
