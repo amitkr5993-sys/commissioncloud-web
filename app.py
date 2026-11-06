@@ -588,6 +588,14 @@ def update_support():
 
     flash("WhatsApp support number updated successfully!", "success")
     return redirect("/admin/payouts")
+    # --- LEGAL ROUTES ---
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy-policy.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
 
 if __name__ == "__main__":
     app.run(debug=True)
