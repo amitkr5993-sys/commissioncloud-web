@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Commission Cloud - Real Cashback</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='welcome.css') }}?v=6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='welcome.css') }}?v=7">
 </head>
 <body>
 
   <div class="welcome-container">
     
-    <!-- Top Header -->
+    <!-- Header -->
     <header class="header-section">
       <div class="trust-badge">100% Guaranteed Cashback</div>
       <h1 class="main-title">Get Real Cashback On Top Brands</h1>
@@ -27,7 +27,7 @@
         <div class="phone-core-glow"></div>
       </div>
 
-      <!-- Commission Cloud 7% Card -->
+      <!-- Commission Cloud 7% Card (मोबाइल से ऊपर जाएगा) -->
       <div class="brand-card card-commission">
         <svg viewBox="0 0 24 24" fill="#00A3FF" width="22" height="22">
           <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
@@ -38,16 +38,11 @@
         </div>
       </div>
 
-      <!-- Brand Cards (मोबाइल से बाहर निकलकर चारों तरफ छितराएंगे) -->
+      <!-- Brand Cards (सीधे मोबाइल से निकलकर चारों कोनों में फैलेंगे) -->
       <img src="{{ url_for('static', filename='images/card-flipkard.png.jpeg') }}" class="brand-card card-flipkart" alt="Flipkart">
       <img src="{{ url_for('static', filename='images/card-amazon.png.jpeg') }}" class="brand-card card-amazon" alt="Amazon">
       <img src="{{ url_for('static', filename='images/card-meesho.png.jpeg') }}" class="brand-card card-meesho" alt="Meesho">
       <img src="{{ url_for('static', filename='images/card-myntra.png.jpeg') }}" class="brand-card card-myntra" alt="Myntra">
-
-      <!-- Base Coins Pile at Bottom -->
-      <div class="coins-base-wrapper">
-        <img src="{{ url_for('static', filename='images/coins.png.jpeg') }}" class="coins-base" alt="Coins Base">
-      </div>
 
     </div>
 
@@ -59,15 +54,14 @@
   </div>
 
   <script>
-    // 🔊 1. सिक्कों की खन-खन आवाज़ (Gold Coins Chime Sound via Web Audio API)
+    // 🔊 1. सिक्कों की खनकती आवाज़
     function playCoinChimeSound() {
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         const ctx = new AudioContext();
 
-        // सोने के सिक्कों की खनकती हुई 7 उच्च आवृत्तियाँ (frequencies)
-        const notes = [1046.50, 1318.51, 1567.98, 2093.00, 2637.02, 3135.96, 4186.01];
+        const notes = [1046.50, 1318.51, 1567.98, 2093.00, 2637.02, 3135.96];
 
         notes.forEach((freq, index) => {
           const osc = ctx.createOscillator();
@@ -76,35 +70,35 @@
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, ctx.currentTime + (index * 0.035));
 
-          // खनक की गूँज और फैलाव (Decay)
-          gain.gain.setValueAtTime(0.35, ctx.currentTime + (index * 0.035));
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (index * 0.035) + 0.6);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + (index * 0.035));
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (index * 0.035) + 0.55);
 
           osc.connect(gain);
           gain.connect(ctx.destination);
 
           osc.start(ctx.currentTime + (index * 0.035));
-          osc.stop(ctx.currentTime + (index * 0.035) + 0.6);
+          osc.stop(ctx.currentTime + (index * 0.035) + 0.55);
         });
       } catch (err) {
-        console.log("Audio not supported or blocked:", err);
+        console.log("Audio not supported:", err);
       }
     }
 
-    // ✨ 2. मोबाइल के अंदर से सिक्के निकलकर ब्लिंक होना (Continuous Fountain)
+    // ✨ 2. मोबाइल के अंदर से असली सोने के सिक्के निकलना (Clear Gold Coins with ₹)
     function launchCoinFromPhone() {
       const stage = document.getElementById('stageWrapper');
       if (!stage) return;
 
-      const coinCount = 5;
+      const coinCount = 4;
       for (let i = 0; i < coinCount; i++) {
         const coin = document.createElement('div');
         coin.className = 'phone-blinking-coin';
+        coin.innerText = '₹';
 
-        const angle = -0.4 + (Math.random() * (Math.PI + 0.8)); 
-        const dist = 60 + Math.random() * 110;
-        const tx = Math.cos(angle) * (Math.random() > 0.5 ? dist : -dist) + 'px';
-        const ty = (-Math.sin(angle) * dist * 1.2) + 'px';
+        const angle = -0.3 + (Math.random() * (Math.PI + 0.6)); 
+        const dist = 65 + Math.random() * 95;
+        const tx = Math.cos(angle) * (Math.random() > 0.5 ? dist : -dist) * 0.95 + 'px';
+        const ty = (-Math.sin(angle) * dist * 1.1) + 'px';
 
         coin.style.setProperty('--tx', tx);
         coin.style.setProperty('--ty', ty);
@@ -113,28 +107,27 @@
 
         setTimeout(() => {
           coin.remove();
-        }, 1100);
+        }, 1150);
       }
     }
 
-    // हर 1 सेकंड में मोबाइल से सिक्के निकलते रहेंगे
-    setInterval(launchCoinFromPhone, 1000);
+    // हर 1.1 सेकंड में मोबाइल से सिक्के निकलेंगे
+    setInterval(launchCoinFromPhone, 1100);
 
-    // 💥 3. 'Get Started' दबाने पर: खन-खन आवाज़ + महा-धमाका (Mega Coin Explosion)
+    // 💥 3. 'Get Started' दबाने पर: खनकती आवाज़ + महा-धमाका
     function handleStartMegaBlast(e) {
       const stage = document.getElementById('stageWrapper');
       const btn = e.currentTarget;
 
-      // तुरंत सिक्कों की खन-खन आवाज़ बजेगी
       playCoinChimeSound();
 
-      // मोबाइल के अंदर से 30 सिक्के तेज़ी से पूरे स्क्रीन पर छितराएंगे
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 28; i++) {
         const blastCoin = document.createElement('div');
         blastCoin.className = 'mega-blast-coin';
+        blastCoin.innerText = '₹';
 
         const angle = Math.random() * Math.PI * 2;
-        const dist = 120 + Math.random() * 220;
+        const dist = 110 + Math.random() * 210;
         const tx = Math.cos(angle) * dist + 'px';
         const ty = Math.sin(angle) * dist + 'px';
 
@@ -144,12 +137,11 @@
         stage.appendChild(blastCoin);
       }
 
-      btn.style.filter = "brightness(1.5)";
+      btn.style.filter = "brightness(1.4)";
 
-      // आवाज़ और ब्लास्ट पूरा महसूस होने के बाद लॉगिन पेज खुलेगा
       setTimeout(() => {
         window.location.href = '/login';
-      }, 650);
+      }, 600);
     }
   </script>
 
