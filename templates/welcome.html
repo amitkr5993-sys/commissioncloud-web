@@ -10,47 +10,68 @@
 
   <div class="welcome-container">
     
-    <!-- Top Header -->
     <header class="header-section">
       <div class="trust-badge">100% Guaranteed Cashback</div>
       <h1 class="main-title">Get Real Cashback On Top Brands</h1>
     </header>
 
-    <!-- Visual Stage -->
     <div class="stage-wrapper">
-      
-      <!-- Top Center: Commission Cloud 7% Card -->
+      <!-- Commission Cloud Top Card -->
       <div class="brand-card card-commission">
-        <div class="card-logo">
-          <svg viewBox="0 0 24 24" fill="#00A3FF" width="24" height="24">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-          </svg>
-        </div>
+        <svg viewBox="0 0 24 24" fill="#00A3FF" width="22" height="22">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+        </svg>
         <div class="card-info">
           <span class="brand-name">Commission Cloud</span>
           <span class="cashback-badge">Cashback 7%</span>
         </div>
       </div>
 
-      <!-- Floating Cards (Images uploaded on GitHub) -->
       <img src="{{ url_for('static', filename='images/card-flipkard.png.jpeg') }}" class="brand-card card-flipkart" alt="Flipkart">
       <img src="{{ url_for('static', filename='images/card-amazon.png.jpeg') }}" class="brand-card card-amazon" alt="Amazon">
       <img src="{{ url_for('static', filename='images/card-meesho.png.jpeg') }}" class="brand-card card-meesho" alt="Meesho">
       <img src="{{ url_for('static', filename='images/card-myntra.png.jpeg') }}" class="brand-card card-myntra" alt="Myntra">
 
-      <!-- Central Model -->
-      <img src="{{ url_for('static', filename='images/model.png.jpeg') }}" class="hero-model" alt="Commission Cloud Model">
-
-      <!-- Bottom Coins Pile -->
+      <img src="{{ url_for('static', filename='images/model.png.jpeg') }}" class="hero-model" alt="Model">
       <img src="{{ url_for('static', filename='images/coins.png.jpeg') }}" class="coins-base" alt="Coins">
     </div>
 
-    <!-- Bottom Action Button -->
     <div class="bottom-action">
-      <a href="/login" class="cta-btn">Get Started</a>
+      <button class="cta-btn" id="startBtn" onclick="handleStart(event)">Get Started</button>
     </div>
 
   </div>
+
+  <script>
+    function handleStart(e) {
+      const btn = e.target;
+      const rect = btn.getBoundingClientRect();
+      
+      // Create 15 explosive coins
+      for (let i = 0; i < 15; i++) {
+        const coin = document.createElement('div');
+        coin.className = 'burst-coin';
+        
+        // Random angle & distance
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 60 + Math.random() * 100;
+        const tx = Math.cos(angle) * dist + 'px';
+        const ty = (Math.sin(angle) * dist - 50) + 'px';
+        
+        coin.style.setProperty('--tx', tx);
+        coin.style.setProperty('--ty', ty);
+        coin.style.left = (rect.width / 2 - 11) + 'px';
+        coin.style.top = '10px';
+        
+        btn.appendChild(coin);
+      }
+
+      // 400ms ke baad login page par le jaana
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 450);
+    }
+  </script>
 
 </body>
 </html>
