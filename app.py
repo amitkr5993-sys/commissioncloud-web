@@ -40,7 +40,7 @@ def inject_settings():
 def home():
     if "user_id" in session:
         return redirect("/dashboard")
-    return render_template('onboarding.html')
+    return render_template('welcome.html')
 
 # अगर किसी के पास पुराना /welcome लिंक है, तो वह सीधे होमपेज पर जाएगा
 @app.route('/welcome')
