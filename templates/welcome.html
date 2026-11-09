@@ -10,13 +10,16 @@
 
   <div class="welcome-container">
     
+    <!-- Top Header -->
     <header class="header-section">
       <div class="trust-badge">100% Guaranteed Cashback</div>
       <h1 class="main-title">Get Real Cashback On Top Brands</h1>
     </header>
 
-    <div class="stage-wrapper">
-      <!-- Commission Cloud Top Card -->
+    <!-- Visual Stage -->
+    <div class="stage-wrapper" id="stageWrapper">
+      
+      <!-- Top Center: Commission Cloud 7% Card -->
       <div class="brand-card card-commission">
         <svg viewBox="0 0 24 24" fill="#00A3FF" width="22" height="22">
           <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
@@ -27,15 +30,26 @@
         </div>
       </div>
 
+      <!-- Floating Brand Cards -->
       <img src="{{ url_for('static', filename='images/card-flipkard.png.jpeg') }}" class="brand-card card-flipkart" alt="Flipkart">
       <img src="{{ url_for('static', filename='images/card-amazon.png.jpeg') }}" class="brand-card card-amazon" alt="Amazon">
       <img src="{{ url_for('static', filename='images/card-meesho.png.jpeg') }}" class="brand-card card-meesho" alt="Meesho">
       <img src="{{ url_for('static', filename='images/card-myntra.png.jpeg') }}" class="brand-card card-myntra" alt="Myntra">
 
-      <img src="{{ url_for('static', filename='images/model.png.jpeg') }}" class="hero-model" alt="Model">
-      <img src="{{ url_for('static', filename='images/coins.png.jpeg') }}" class="coins-base" alt="Coins">
+      <!-- Central Hero Model -->
+      <img src="{{ url_for('static', filename='images/model.png.jpeg') }}" class="hero-model" alt="Commission Cloud Model">
+
+      <!-- Mobile Glow Aura (लड़की के मोबाइल पर लगातार चमकने वाली रिंग) -->
+      <div class="phone-glow-aura"></div>
+
+      <!-- Base Coins Pile at Feet -->
+      <div class="coins-base-wrapper">
+        <img src="{{ url_for('static', filename='images/coins.png.jpeg') }}" class="coins-base" alt="Coins Base">
+      </div>
+
     </div>
 
+    <!-- Bottom Action Button -->
     <div class="bottom-action">
       <button class="cta-btn" id="startBtn" onclick="handleStart(event)">Get Started</button>
     </div>
@@ -43,30 +57,59 @@
   </div>
 
   <script>
+    // मोबाइल स्क्रीन से सिक्के और चमक फूटने का फंक्शन
+    function burstFromMobile() {
+      const stage = document.getElementById('stageWrapper');
+      if (!stage) return;
+
+      const coinCount = 6; 
+      for (let i = 0; i < coinCount; i++) {
+        const coin = document.createElement('div');
+        // कुछ सिक्के होंगे और कुछ चमकती हुई चिंगारियां
+        coin.className = (i % 2 === 0) ? 'phone-burst-coin' : 'phone-burst-sparkle';
+
+        // मोबाइल स्क्रीन से चारों तरफ (ऊपर और दायें-बायें) एंगल
+        const angle = -0.2 + (Math.random() * (Math.PI + 0.4)); 
+        const distance = 60 + Math.random() * 110;
+        const dx = (Math.cos(angle) * distance) + 'px';
+        const dy = (-Math.sin(angle) * distance) + 'px';
+
+        coin.style.setProperty('--dx', dx);
+        coin.style.setProperty('--dy', dy);
+
+        stage.appendChild(coin);
+
+        setTimeout(() => {
+          coin.remove();
+        }, 1100);
+      }
+    }
+
+    // हर 1.3 सेकंड में लड़की के मोबाइल से सिक्के फूटेंगे
+    setInterval(burstFromMobile, 1300);
+
+    // Get Started बटन पर क्लिक पर बड़ा धमाका
     function handleStart(e) {
-      const btn = e.target;
+      const btn = e.currentTarget;
       const rect = btn.getBoundingClientRect();
       
-      // Create 15 explosive coins
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 20; i++) {
         const coin = document.createElement('div');
         coin.className = 'burst-coin';
         
-        // Random angle & distance
         const angle = Math.random() * Math.PI * 2;
-        const dist = 60 + Math.random() * 100;
+        const dist = 70 + Math.random() * 130;
         const tx = Math.cos(angle) * dist + 'px';
-        const ty = (Math.sin(angle) * dist - 50) + 'px';
+        const ty = (Math.sin(angle) * dist - 60) + 'px';
         
         coin.style.setProperty('--tx', tx);
         coin.style.setProperty('--ty', ty);
-        coin.style.left = (rect.width / 2 - 11) + 'px';
+        coin.style.left = (rect.width / 2 - 10) + 'px';
         coin.style.top = '10px';
         
         btn.appendChild(coin);
       }
 
-      // 400ms ke baad login page par le jaana
       setTimeout(() => {
         window.location.href = '/login';
       }, 450);
