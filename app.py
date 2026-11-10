@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, jsonify, session, f
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from models import init_db, get_db
+import requests
 
 app = Flask(__name__)
 app.secret_key = "commission_cloud_secret_key_production"
@@ -15,9 +16,9 @@ init_db()
 # Google Cloud OAuth Client ID
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
-# INRDeals Credentials & Configuration
-INRDEALS_API_KEY = "YOUR_INRDEALS_API_KEY_HERE"
-INRDEALS_SOURCE_ID = "YOUR_SOURCE_ID_HERE"
+# vCommission Credentials & Configuration
+VCOMMISSION_API_KEY = "6af364581ba6729dae93901dc56a6f364581ba95"
+AFFILIATE_ID = "133696"
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
 USER_CASHBACK_PERCENT = 0.40  # 40% User Share, 60% Admin Margin
@@ -35,14 +36,12 @@ def inject_settings():
 # --- LANDING & ONBOARDING ROUTES ---
 # ==============================================================================
 
-# अगर यूज़र पहले से लॉगिन है तो सीधे Dashboard खुलेगा, नहीं तो Onboarding
 @app.route('/')
 def home():
     if "user_id" in session:
         return redirect("/dashboard")
     return render_template('welcome.html')
 
-# अगर किसी के पास पुराना /welcome लिंक है, तो वह सीधे होमपेज पर जाएगा
 @app.route('/welcome')
 def welcome():
     return redirect('/')
@@ -63,7 +62,7 @@ def login():
         referral_input = request.form.get("referral_code", "").strip() or ref_code
         conn = get_db()
 
-        # 1. Instant Email Login Flow (No Password Needed)
+        # 1. Instant Email Login Flow
         if login_type == "email":
             email = request.form.get("email", "").strip().lower()
             if not email or "@" not in email:
@@ -148,7 +147,7 @@ def login():
 
     return render_template("login.html", auto_ref=ref_code)
 
-# 3. Google Sign-In Verification API (One-Tap & Pop-up)
+# 3. Google Sign-In Verification API
 @app.route("/api/google-login", methods=["POST"])
 def google_login():
     data = request.get_json() or {}
@@ -160,7 +159,6 @@ def google_login():
 
     try:
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-
         email = id_info.get("email")
         name = id_info.get("name") or (email.split("@")[0] if email else "User")
 
@@ -206,7 +204,7 @@ def logout():
 
 
 # ==============================================================================
-# --- MAIN APPLICATION DASHBOARD (CashKaro Style Homepage) ---
+# --- MAIN APPLICATION DASHBOARD ---
 # ==============================================================================
 
 @app.route("/dashboard")
@@ -226,12 +224,14 @@ def dashboard():
 
     return render_template("index.html", stores=stores, user=user)
 
-# Backward-compatible signup redirect (routes legacy ref links directly to login)
 @app.route("/signup")
 def signup():
     ref_code = request.args.get("ref", "").strip()
     return redirect(url_for("login", ref=ref_code))
 
+# ==============================================================================
+# --- vCOMMISSION OUTBOUND TRACKING LINK GENERATOR ---
+# ==============================================================================
 @app.route("/go/<store_name>")
 def outbound_click(store_name):
     if "user_id" not in session:
@@ -253,7 +253,9 @@ def outbound_click(store_name):
     conn.close()
 
     encoded_target = urllib.parse.quote(store["target_url"], safe="")
-    affiliate_url = f"https://inrdeals.com/track?api_key={INRDEALS_API_KEY}&src={INRDEALS_SOURCE_ID}&subid={sub_id}&url={encoded_target}"
+    
+    # vCommission Tracking URL Format (Affiliate ID: 133696)
+    affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
 
     return redirect(affiliate_url)
 
@@ -395,7 +397,7 @@ def profile():
     return render_template("profile.html", user=user)
 
 # ==============================================================================
-# --- AUTOMATIC POSTBACK / WEBHOOK (40% User / 60% Admin + Cancel Protection) ---
+# --- vCOMMISSION AUTOMATIC POSTBACK / WEBHOOK ---
 # ==============================================================================
 @app.route("/api/postback", methods=["GET", "POST"])
 def affiliate_postback():
@@ -415,7 +417,6 @@ def affiliate_postback():
 
     conn = get_db()
 
-    # Identify user from click logs
     click = conn.execute("SELECT user_id, store_name FROM click_logs WHERE sub_id = ?", (sub_id,)).fetchone()
     if not click:
         conn.close()
@@ -425,24 +426,20 @@ def affiliate_postback():
     user_share = round(total_payout * USER_CASHBACK_PERCENT, 2)
     admin_profit = round(total_payout - user_share, 2)
 
-    # Check for manual claim duplicates
     duplicate_claim = conn.execute("SELECT id, status FROM missing_claims WHERE order_id = ?", (order_id,)).fetchone()
     if duplicate_claim and str(duplicate_claim["status"]).upper() in ["APPROVED", "CONFIRMED"]:
         conn.close()
         return jsonify({"status": "ignored", "message": "Order already processed manually"}), 200
 
-    # 1. Tracked (48-72h): Add 40% only to Pending Balance
     if status in ["pending", "tracked"]:
         conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_share, user_id))
         conn.commit()
 
-    # 2. Cancelled / Returned: Instantly deduct from Pending Balance
     elif status in ["cancelled", "declined", "rejected"]:
         conn.execute("UPDATE users SET pending_balance = MAX(0.0, pending_balance - ?) WHERE id = ?", (user_share, user_id))
         conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
         conn.commit()
 
-    # 3. Confirmed after return window: Move from Pending to Confirmed Balance
     elif status in ["confirmed", "approved"]:
         conn.execute('''
             UPDATE users 
@@ -451,7 +448,6 @@ def affiliate_postback():
             WHERE id = ?
         ''', (user_share, user_share, user_id))
 
-        # Check Referral Qualification (Flat 50 bonus when referred user hits 50 confirmed)
         friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
             referrer_id = friend["referred_by"]
@@ -511,7 +507,6 @@ def admin_pay_confirm(req_id):
     flash("Payout confirmed and marked as PAID successfully!", "success")
     return redirect("/admin/payouts")
 
-# Approve Missing Claim: Adds 40% User Share to PENDING Balance
 @app.route("/admin/approve-claim/<int:claim_id>", methods=["POST"])
 def admin_approve_claim(claim_id):
     try:
@@ -546,7 +541,6 @@ def admin_approve_claim(claim_id):
     conn.close()
     return redirect("/admin/payouts")
 
-# Move from Pending to Confirmed Balance after 60-90 days
 @app.route("/admin/confirm-claim/<int:claim_id>", methods=["POST"])
 def admin_confirm_claim(claim_id):
     try:
