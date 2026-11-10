@@ -17,7 +17,7 @@ init_db()
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
 # vCommission Credentials & Configuration
-VCOMMISSION_API_KEY = "6af364581ba6729dae93901dc56a6f364581ba95"
+VCOMMISSION_API_KEY = "6af364581ba6729dae93901dcf56af364581ba95"
 AFFILIATE_ID = "133696"
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
