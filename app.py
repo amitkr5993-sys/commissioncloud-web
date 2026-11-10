@@ -605,15 +605,46 @@ def terms():
 
 @app.route('/auth/google/callback')
 def google_callback():
-    id_token = request.args.get('id_token')
+    token = request.args.get('id_token')
     
-    if not id_token:
+    if not token:
         return "Google Sign-In Error: ID Token missing!", 400
     
-    session['google_id_token'] = id_token
-    session['logged_in'] = True
-    
-    return redirect('/dashboard')
+    try:
+        # गूगल टोकन को वेरीफाई करें
+        id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        email = id_info.get("email")
+        name = id_info.get("name") or (email.split("@")[0] if email else "User")
+
+        if not email:
+            return "Google did not provide an email", 400
+
+        conn = get_db()
+        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+        if user:
+            # अगर यूजर पहले से है तो लॉगिन करें
+            session["user_id"] = user["id"]
+        else:
+            # अगर नया यूजर है तो डेटाबेस में अकाउंट बनाएं
+            new_ref_code = f"USER{uuid.uuid4().hex[:5].upper()}"
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO users (name, email, phone, password, referral_code, confirmed_balance, pending_balance, referred_by, referral_bonus_given)
+                VALUES (?, ?, NULL, NULL, ?, 0.0, 0.0, NULL, 0)
+            ''', (name, email, new_ref_code))
+            
+            new_user_id = cursor.lastrowid
+            conn.commit()
+            session["user_id"] = new_user_id
+
+        conn.close()
+        
+        # सब कुछ सही होने पर सीधे डैशबोर्ड पर भेज दें
+        return redirect("/dashboard")
+
+    except Exception as e:
+        return f"Verification failed: {str(e)}", 400
 
 if __name__ == "__main__":
     app.run(debug=True)
