@@ -13,7 +13,7 @@ app.secret_key = "commission_cloud_secret_key_production"
 init_db()
 
 # Google Cloud OAuth Client ID
-GOOGLE_CLIENT_ID = "81183350397-dqqhud2icopqk96e9c6kuqjipljscj99.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
 # INRDeals Credentials & Configuration
 INRDEALS_API_KEY = "YOUR_INRDEALS_API_KEY_HERE"
@@ -611,7 +611,6 @@ def google_callback():
         return "Google Sign-In Error: ID Token missing!", 400
     
     try:
-        # गूगल टोकन को वेरीफाई करें
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
         email = id_info.get("email")
         name = id_info.get("name") or (email.split("@")[0] if email else "User")
@@ -623,10 +622,8 @@ def google_callback():
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
 
         if user:
-            # अगर यूजर पहले से है तो लॉगिन करें
             session["user_id"] = user["id"]
         else:
-            # अगर नया यूजर है तो डेटाबेस में अकाउंट बनाएं
             new_ref_code = f"USER{uuid.uuid4().hex[:5].upper()}"
             cursor = conn.cursor()
             cursor.execute('''
@@ -640,11 +637,10 @@ def google_callback():
 
         conn.close()
         
-        # सब कुछ सही होने पर सीधे डैशबोर्ड पर भेज दें
         return redirect("/dashboard")
 
     except Exception as e:
         return f"Verification failed: {str(e)}", 400
-
+        
 if __name__ == "__main__":
     app.run(debug=True)
