@@ -603,5 +603,17 @@ def privacy_policy():
 def terms():
     return render_template('terms.html')
 
+@app.route('/auth/google/callback')
+def google_callback():
+    id_token = request.args.get('id_token')
+    
+    if not id_token:
+        return "Google Sign-In Error: ID Token missing!", 400
+    
+    session['google_id_token'] = id_token
+    session['logged_in'] = True
+    
+    return redirect('/dashboard')
+
 if __name__ == "__main__":
     app.run(debug=True)
