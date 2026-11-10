@@ -16,9 +16,11 @@ init_db()
 # Google Cloud OAuth Client ID
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
-# vCommission Credentials & Configuration
-VCOMMISSION_API_KEY = "6af364581ba6729dae93901dcf56af364581ba95"
+# vCommission / Trackier Credentials & Configuration
+VCOMMISSION_API_KEY = "6af364581ba6729dae93901dc56a6f364581ba95"
 AFFILIATE_ID = "133696"
+TRACKIER_API_URL = f"https://api.trackier.com/v2/publisher/campaigns?apiKey={VCOMMISSION_API_KEY}"
+
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
 USER_CASHBACK_PERCENT = 0.40  # 40% User Share, 60% Admin Margin
@@ -31,6 +33,34 @@ def inject_settings():
     conn.close()
     settings_dict = {row["key"]: row["value"] for row in settings_rows}
     return dict(app_settings=settings_dict)
+
+# Helper function to fetch live campaigns from vCommission / Trackier API
+def fetch_vcommission_campaigns():
+    try:
+        response = requests.get(TRACKIER_API_URL, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            # Trackier API usually returns data under 'data' or 'campaigns'
+            campaigns = data.get("data") or data.get("campaigns") or []
+            if campaigns:
+                formatted_stores = []
+                for camp in campaigns:
+                    formatted_stores.append({
+                        "name": camp.get("name", "Brand"),
+                        "category": camp.get("category", "E-commerce"),
+                        "cashback_rate": camp.get("payout_readable", "Upto Cashback"),
+                        "target_url": camp.get("tracking_url") or camp.get("url", "https://www.vcommission.com"),
+                        "badge": "Live Offer"
+                    })
+                return formatted_stores
+    except Exception as e:
+        print("API Fetch Error:", str(e))
+    
+    # Fallback to local database stores if API is unreachable
+    conn = get_db()
+    stores = conn.execute("SELECT * FROM stores").fetchall()
+    conn.close()
+    return [dict(s) for s in stores]
 
 # ==============================================================================
 # --- LANDING & ONBOARDING ROUTES ---
@@ -214,13 +244,15 @@ def dashboard():
         return redirect("/login")
 
     conn = get_db()
-    stores = conn.execute("SELECT * FROM stores").fetchall()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
     conn.close()
 
     if not user:
         session.pop("user_id", None)
         return redirect("/login")
+
+    # Fetch stores dynamically from vCommission / Trackier API with fallback
+    stores = fetch_vcommission_campaigns()
 
     return render_template("index.html", stores=stores, user=user)
 
@@ -232,27 +264,32 @@ def signup():
 # ==============================================================================
 # --- vCOMMISSION OUTBOUND TRACKING LINK GENERATOR ---
 # ==============================================================================
-@app.route("/go/<store_name>")
+@app.route("/go/<path:store_name>")
 def outbound_click(store_name):
     if "user_id" not in session:
         return redirect("/login")
 
-    conn = get_db()
-    store = conn.execute("SELECT * FROM stores WHERE name = ?", (store_name,)).fetchone()
-    
-    if not store:
-        conn.close()
-        return "Store not found", 404
-
     user_id = session.get("user_id")
     sub_id = f"cc_{user_id}_{uuid.uuid4().hex[:8]}"
 
+    conn = get_db()
     conn.execute("INSERT INTO click_logs (user_id, store_name, sub_id) VALUES (?, ?, ?)",
                  (user_id, store_name, sub_id))
     conn.commit()
     conn.close()
 
-    encoded_target = urllib.parse.quote(store["target_url"], safe="")
+    # Target URL fallback if direct name is clicked
+    target_url = "https://www.vcommission.com"
+    if "flipkart" in store_name.lower():
+        target_url = "https://www.flipkart.com"
+    elif "amazon" in store_name.lower():
+        target_url = "https://www.amazon.in"
+    elif "myntra" in store_name.lower():
+        target_url = "https://www.myntra.com"
+    elif "ajio" in store_name.lower():
+        target_url = "https://www.ajio.com"
+
+    encoded_target = urllib.parse.quote(target_url, safe="")
     
     # vCommission Tracking URL Format (Affiliate ID: 133696)
     affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
@@ -563,7 +600,7 @@ def admin_confirm_claim(claim_id):
             referrer_id = friend["referred_by"]
             conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
                          (REFERRAL_BONUS_AMOUNT, referrer_id))
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
+            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = (main)", (user_id,))
 
         conn.commit()
         flash("Cashback approved and referral reward processed successfully!", "success")
