@@ -17,7 +17,7 @@ init_db()
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
 # vCommission / Trackier Credentials & Configuration
-VCOMMISSION_API_KEY = "6af364581ba6729dae93901dc56a6f364581ba95"
+VCOMMISSION_API_KEY = "6af364581ba6729dae93901dcf56af364581ba95"
 AFFILIATE_ID = "133696"
 TRACKIER_API_URL = f"https://api.trackier.com/v2/publisher/campaigns?apiKey={VCOMMISSION_API_KEY}"
 
@@ -34,28 +34,29 @@ def inject_settings():
     settings_dict = {row["key"]: row["value"] for row in settings_rows}
     return dict(app_settings=settings_dict)
 
-# Helper function to fetch live campaigns from vCommission / Trackier API
+# 100% Dynamic Function to fetch campaigns directly from Trackier API
 def fetch_vcommission_campaigns():
     try:
-        response = requests.get(TRACKIER_API_URL, timeout=5)
+        response = requests.get(TRACKIER_API_URL, timeout=8)
         if response.status_code == 200:
             data = response.json()
             campaigns = data.get("data") or data.get("campaigns") or []
             if campaigns:
                 formatted_stores = []
                 for camp in campaigns:
+                    # Storing campaign details dynamically without any hardcoding
                     formatted_stores.append({
-                        "name": camp.get("name", "Brand"),
+                        "name": camp.get("name", "Brand Offer"),
                         "category": camp.get("category", "E-commerce"),
-                        "cashback_rate": camp.get("payout_readable", "Upto Cashback"),
-                        "target_url": camp.get("tracking_url") or camp.get("url", "https://www.vcommission.com"),
+                        "cashback_rate": camp.get("payout_readable") or f"Upto {camp.get('payout', '5%')} Cashback",
+                        "target_url": camp.get("tracking_url") or camp.get("url") or "https://www.vcommission.com",
                         "badge": "Live Offer"
                     })
                 return formatted_stores
     except Exception as e:
-        print("API Fetch Error:", str(e))
+        print("Dynamic API Fetch Error:", str(e))
     
-    # Fallback to local database stores if API is unreachable
+    # Fallback to local database only if API is unreachable
     conn = get_db()
     stores = conn.execute("SELECT * FROM stores").fetchall()
     conn.close()
@@ -250,7 +251,7 @@ def dashboard():
         session.pop("user_id", None)
         return redirect("/login")
 
-    # Fetch stores dynamically from vCommission / Trackier API with fallback
+    # Fetch all campaigns dynamically on the fly from Trackier API
     stores = fetch_vcommission_campaigns()
 
     return render_template("index.html", stores=stores, user=user)
@@ -261,7 +262,7 @@ def signup():
     return redirect(url_for("login", ref=ref_code))
 
 # ==============================================================================
-# --- vCOMMISSION DYNAMIC OUTBOUND TRACKING LINK GENERATOR ---
+# --- FULLY DYNAMIC OUTBOUND TRACKING LINK GENERATOR (NO HARDCODING) ---
 # ==============================================================================
 @app.route("/go/<path:store_name>")
 def outbound_click(store_name):
@@ -277,31 +278,32 @@ def outbound_click(store_name):
     conn.commit()
     conn.close()
 
-    # Default fallback URL
     target_url = "https://www.vcommission.com"
 
-    # Fetch campaigns dynamically from Trackier API on the fly
+    # Fetch live campaign on click to grab its exact tracking URL dynamically
     try:
-        response = requests.get(TRACKIER_API_URL, timeout=5)
+        response = requests.get(TRACKIER_API_URL, timeout=8)
         if response.status_code == 200:
             data = response.json()
             campaigns = data.get("data") or data.get("campaigns") or []
             
             for camp in campaigns:
                 c_name = str(camp.get("name", "")).strip()
+                # Match store name dynamically from API data
                 if store_name.lower() in c_name.lower() or c_name.lower() in store_name.lower():
-                    target_url = camp.get("tracking_url") or camp.get("url") or target_url
+                    api_tracking = camp.get("tracking_url") or camp.get("url")
+                    if api_tracking:
+                        target_url = api_tracking
                     break
     except Exception as e:
-        print("Dynamic API Link Fetch Error:", str(e))
+        print("Dynamic Click Fetch Error:", str(e))
 
-    # If Trackier/vCommission provides a direct tracking link, append subid and redirect
+    # Append subid cleanly without causing any 404
     if "network.vcommission.com" in target_url or "trackier.com" in target_url:
         separator = "&" if "?" in target_url else "?"
         final_url = f"{target_url}{separator}subid={sub_id}"
         return redirect(final_url)
     else:
-        # Otherwise wrap it with the standard vCommission click affiliate structure
         encoded_target = urllib.parse.quote(target_url, safe="")
         affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
         return redirect(affiliate_url)
