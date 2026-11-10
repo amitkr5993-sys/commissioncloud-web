@@ -40,7 +40,6 @@ def fetch_vcommission_campaigns():
         response = requests.get(TRACKIER_API_URL, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            # Trackier API usually returns data under 'data' or 'campaigns'
             campaigns = data.get("data") or data.get("campaigns") or []
             if campaigns:
                 formatted_stores = []
@@ -262,7 +261,7 @@ def signup():
     return redirect(url_for("login", ref=ref_code))
 
 # ==============================================================================
-# --- vCOMMISSION OUTBOUND TRACKING LINK GENERATOR ---
+# --- vCOMMISSION DYNAMIC OUTBOUND TRACKING LINK GENERATOR ---
 # ==============================================================================
 @app.route("/go/<path:store_name>")
 def outbound_click(store_name):
@@ -278,23 +277,34 @@ def outbound_click(store_name):
     conn.commit()
     conn.close()
 
-    # Target URL fallback if direct name is clicked
+    # Default fallback URL
     target_url = "https://www.vcommission.com"
-    if "flipkart" in store_name.lower():
-        target_url = "https://www.flipkart.com"
-    elif "amazon" in store_name.lower():
-        target_url = "https://www.amazon.in"
-    elif "myntra" in store_name.lower():
-        target_url = "https://www.myntra.com"
-    elif "ajio" in store_name.lower():
-        target_url = "https://www.ajio.com"
 
-    encoded_target = urllib.parse.quote(target_url, safe="")
-    
-    # vCommission Tracking URL Format (Affiliate ID: 133696)
-    affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
+    # Fetch campaigns dynamically from Trackier API on the fly
+    try:
+        response = requests.get(TRACKIER_API_URL, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            campaigns = data.get("data") or data.get("campaigns") or []
+            
+            for camp in campaigns:
+                c_name = str(camp.get("name", "")).strip()
+                if store_name.lower() in c_name.lower() or c_name.lower() in store_name.lower():
+                    target_url = camp.get("tracking_url") or camp.get("url") or target_url
+                    break
+    except Exception as e:
+        print("Dynamic API Link Fetch Error:", str(e))
 
-    return redirect(affiliate_url)
+    # If Trackier/vCommission provides a direct tracking link, append subid and redirect
+    if "network.vcommission.com" in target_url or "trackier.com" in target_url:
+        separator = "&" if "?" in target_url else "?"
+        final_url = f"{target_url}{separator}subid={sub_id}"
+        return redirect(final_url)
+    else:
+        # Otherwise wrap it with the standard vCommission click affiliate structure
+        encoded_target = urllib.parse.quote(target_url, safe="")
+        affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
+        return redirect(affiliate_url)
 
 @app.route("/earnings")
 def earnings():
@@ -600,7 +610,7 @@ def admin_confirm_claim(claim_id):
             referrer_id = friend["referred_by"]
             conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
                          (REFERRAL_BONUS_AMOUNT, referrer_id))
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = (main)", (user_id,))
+            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
 
         conn.commit()
         flash("Cashback approved and referral reward processed successfully!", "success")
