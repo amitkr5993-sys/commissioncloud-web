@@ -1,12 +1,12 @@
 import os
 import uuid
+import json
 import urllib.parse
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, jsonify, session, flash, url_for
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from models import init_db, get_db
-import requests
 
 app = Flask(__name__)
 app.secret_key = "commission_cloud_secret_key_production"
@@ -16,10 +16,8 @@ init_db()
 # Google Cloud OAuth Client ID
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
-# vCommission / Trackier Credentials & Configuration
-VCOMMISSION_API_KEY = "6af364581ba6729dae93901dc56a6f364581ba95"
+# vCommission Affiliate ID
 AFFILIATE_ID = "133696"
-TRACKIER_API_URL = f"https://api.trackier.com/v2/publisher/campaigns?apiKey={VCOMMISSION_API_KEY}"
 
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
@@ -34,31 +32,27 @@ def inject_settings():
     settings_dict = {row["key"]: row["value"] for row in settings_rows}
     return dict(app_settings=settings_dict)
 
-# 100% Dynamic & Safe Function to fetch campaigns with zero 504 Timeout errors
+# Function to load stores directly from local stores.json file (100% Reliable & No 404)
 def fetch_vcommission_campaigns():
-    try:
-        response = requests.get(TRACKIER_API_URL, timeout=4)
-        if response.status_code == 200:
-            data = response.json()
-            campaigns = data.get("data") or data.get("campaigns") or []
-            if campaigns:
+    if os.path.exists("stores.json"):
+        try:
+            with open("stores.json", "r") as f:
+                stores = json.load(f)
                 formatted_stores = []
-                for camp in campaigns:
-                    status = str(camp.get("status", "active")).lower()
-                    if status in ["active", "1", "approved"]:
-                        formatted_stores.append({
-                            "name": camp.get("name", "Brand Offer"),
-                            "category": camp.get("category", "E-commerce"),
-                            "cashback_rate": camp.get("payout_readable") or f"Upto {camp.get('payout', '5%')} Cashback",
-                            "target_url": camp.get("tracking_url") or camp.get("url") or "https://www.vcommission.com",
-                            "badge": "Live Offer"
-                        })
+                for store in stores:
+                    formatted_stores.append({
+                        "name": store.get("name", "Brand Offer"),
+                        "category": store.get("category", "E-commerce"),
+                        "cashback_rate": store.get("cashback_rate", "Upto 7% Cashback"),
+                        "target_url": store.get("target_url", "https://www.vcommission.com"),
+                        "badge": "Live Offer"
+                    })
                 if formatted_stores:
                     return formatted_stores
-    except Exception as e:
-        print("API Timeout or Fetch Error (Using Fallback):", str(e))
+        except Exception as e:
+            print("JSON Read Error:", str(e))
     
-    # Fallback to local database if API times out or gives 504
+    # Fallback to local database stores table if JSON is missing
     conn = get_db()
     stores = conn.execute("SELECT * FROM stores").fetchall()
     conn.close()
@@ -79,7 +73,7 @@ def welcome():
     return redirect('/')
 
 # ==============================================================================
-# --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
+# --- AUTHENTICATION ROUTES ---
 # ==============================================================================
 
 @app.route("/login", methods=["GET", "POST"])
@@ -94,7 +88,6 @@ def login():
         referral_input = request.form.get("referral_code", "").strip() or ref_code
         conn = get_db()
 
-        # 1. Instant Email Login Flow
         if login_type == "email":
             email = request.form.get("email", "").strip().lower()
             if not email or "@" not in email:
@@ -132,7 +125,6 @@ def login():
                 flash("Account created instantly! Welcome to Commission Cloud.", "success")
                 return redirect("/dashboard")
 
-        # 2. Phone + Password Flow
         elif login_type == "phone":
             phone = request.form.get("phone", "").strip()
             password = request.form.get("password", "").strip()
@@ -179,7 +171,6 @@ def login():
 
     return render_template("login.html", auto_ref=ref_code)
 
-# 3. Google Sign-In Verification API
 @app.route("/api/google-login", methods=["POST"])
 def google_login():
     data = request.get_json() or {}
@@ -253,9 +244,7 @@ def dashboard():
         session.pop("user_id", None)
         return redirect("/login")
 
-    # Fetch all campaigns dynamically on the fly
     stores = fetch_vcommission_campaigns()
-
     return render_template("index.html", stores=stores, user=user)
 
 @app.route("/signup")
@@ -264,7 +253,7 @@ def signup():
     return redirect(url_for("login", ref=ref_code))
 
 # ==============================================================================
-# --- FULLY DYNAMIC OUTBOUND TRACKING LINK GENERATOR (SAFE & ERROR-FREE) ---
+# --- RELIABLE OUTBOUND TRACKING LINK GENERATOR (JSON BASED) ---
 # ==============================================================================
 @app.route("/go/<path:store_name>")
 def outbound_click(store_name):
@@ -274,30 +263,24 @@ def outbound_click(store_name):
     user_id = session.get("user_id")
     sub_id = f"cc_{user_id}_{uuid.uuid4().hex[:8]}"
 
+    # Find store tracking URL from stores.json
+    target_url = "https://www.vcommission.com"
+    if os.path.exists("stores.json"):
+        try:
+            with open("stores.json", "r") as f:
+                stores = json.load(f)
+                for store in stores:
+                    if store.get("name", "").strip().lower() == store_name.strip().lower():
+                        target_url = store.get("target_url", target_url)
+                        break
+        except Exception as e:
+            print("JSON Click Error:", str(e))
+
     conn = get_db()
     conn.execute("INSERT INTO click_logs (user_id, store_name, sub_id) VALUES (?, ?, ?)",
                  (user_id, store_name, sub_id))
     conn.commit()
     conn.close()
-
-    target_url = "https://www.vcommission.com"
-
-    # Fetch live campaign on click safely with timeout
-    try:
-        response = requests.get(TRACKIER_API_URL, timeout=4)
-        if response.status_code == 200:
-            data = response.json()
-            campaigns = data.get("data") or data.get("campaigns") or []
-            
-            for camp in campaigns:
-                c_name = str(camp.get("name", "")).strip()
-                if store_name.lower() in c_name.lower() or c_name.lower() in store_name.lower():
-                    api_tracking = camp.get("tracking_url") or camp.get("url")
-                    if api_tracking:
-                        target_url = api_tracking
-                    break
-    except Exception as e:
-        print("Dynamic Click Fetch Error:", str(e))
 
     # Append subid cleanly
     if "network.vcommission.com" in target_url or "trackier.com" in target_url:
@@ -432,7 +415,7 @@ def missing():
             flash("Missing cashback claim submitted successfully! Status is Under Review.", "success")
     
     claims = conn.execute("SELECT * FROM missing_claims WHERE user_id = ? ORDER BY submitted_at DESC", (session["user_id"],)).fetchall()
-    stores = conn.execute("SELECT name FROM stores").fetchall()
+    stores = fetch_vcommission_campaigns()
     conn.close()
     return render_template("missing.html", claims=claims, stores=stores)
 
