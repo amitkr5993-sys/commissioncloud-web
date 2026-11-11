@@ -1,12 +1,12 @@
 import os
 import uuid
-import json
 import urllib.parse
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, jsonify, session, flash, url_for
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from models import init_db, get_db
+from vcommission import get_all_campaigns
 
 app = Flask(__name__)
 app.secret_key = "commission_cloud_secret_key_production"
@@ -16,9 +16,9 @@ init_db()
 # Google Cloud OAuth Client ID
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
-# vCommission Affiliate ID
-AFFILIATE_ID = "133696"
-
+# INRDeals Credentials & Configuration
+INRDEALS_API_KEY = "YOUR_INRDEALS_API_KEY_HERE"
+INRDEALS_SOURCE_ID = "YOUR_SOURCE_ID_HERE"
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
 USER_CASHBACK_PERCENT = 0.40  # 40% User Share, 60% Admin Margin
@@ -31,32 +31,6 @@ def inject_settings():
     conn.close()
     settings_dict = {row["key"]: row["value"] for row in settings_rows}
     return dict(app_settings=settings_dict)
-
-# Function to load stores directly from local stores.json file (100% Reliable & No 404)
-def fetch_vcommission_campaigns():
-    if os.path.exists("stores.json"):
-        try:
-            with open("stores.json", "r") as f:
-                stores = json.load(f)
-                formatted_stores = []
-                for store in stores:
-                    formatted_stores.append({
-                        "name": store.get("name", "Brand Offer"),
-                        "category": store.get("category", "E-commerce"),
-                        "cashback_rate": store.get("cashback_rate", "Upto 7% Cashback"),
-                        "target_url": store.get("target_url", "https://www.vcommission.com"),
-                        "badge": "Live Offer"
-                    })
-                if formatted_stores:
-                    return formatted_stores
-        except Exception as e:
-            print("JSON Read Error:", str(e))
-    
-    # Fallback to local database stores table if JSON is missing
-    conn = get_db()
-    stores = conn.execute("SELECT * FROM stores").fetchall()
-    conn.close()
-    return [dict(s) for s in stores]
 
 # ==============================================================================
 # --- LANDING & ONBOARDING ROUTES ---
@@ -73,7 +47,7 @@ def welcome():
     return redirect('/')
 
 # ==============================================================================
-# --- AUTHENTICATION ROUTES ---
+# --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
 # ==============================================================================
 
 @app.route("/login", methods=["GET", "POST"])
@@ -88,6 +62,7 @@ def login():
         referral_input = request.form.get("referral_code", "").strip() or ref_code
         conn = get_db()
 
+        # 1. Instant Email Login Flow (No Password Needed)
         if login_type == "email":
             email = request.form.get("email", "").strip().lower()
             if not email or "@" not in email:
@@ -125,6 +100,7 @@ def login():
                 flash("Account created instantly! Welcome to Commission Cloud.", "success")
                 return redirect("/dashboard")
 
+        # 2. Phone + Password Flow
         elif login_type == "phone":
             phone = request.form.get("phone", "").strip()
             password = request.form.get("password", "").strip()
@@ -182,6 +158,7 @@ def google_login():
 
     try:
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+
         email = id_info.get("email")
         name = id_info.get("name") or (email.split("@")[0] if email else "User")
 
@@ -227,7 +204,7 @@ def logout():
 
 
 # ==============================================================================
-# --- MAIN APPLICATION DASHBOARD ---
+# --- MAIN APPLICATION DASHBOARD (vCOMMISSION API INTEGRATED) ---
 # ==============================================================================
 
 @app.route("/dashboard")
@@ -244,7 +221,22 @@ def dashboard():
         session.pop("user_id", None)
         return redirect("/login")
 
-    stores = fetch_vcommission_campaigns()
+    # vCommission API से लाइव ब्रांड्स फेच करें (हार्ड-कोडेड डेटाबेस स्टोर्स की जगह)
+    stores = []
+    try:
+        vc_campaigns = get_all_campaigns()
+        if vc_campaigns:
+            for camp in vc_campaigns:
+                stores.append({
+                    "name": camp["name"],
+                    "badge": "Live API",
+                    "cashback_rate": "Best Cashback",
+                    "link": f"/redirect?url={urllib.parse.quote(camp['link'])}",
+                    "logo": camp["logo"]
+                })
+    except Exception as e:
+        print(f"vCommission API Fetch Error: {e}")
+
     return render_template("index.html", stores=stores, user=user)
 
 @app.route("/signup")
@@ -252,45 +244,14 @@ def signup():
     ref_code = request.args.get("ref", "").strip()
     return redirect(url_for("login", ref=ref_code))
 
-# ==============================================================================
-# --- RELIABLE OUTBOUND TRACKING LINK GENERATOR (JSON BASED) ---
-# ==============================================================================
-@app.route("/go/<path:store_name>")
-def outbound_click(store_name):
+@app.route("/redirect")
+def redirect_link():
     if "user_id" not in session:
         return redirect("/login")
-
-    user_id = session.get("user_id")
-    sub_id = f"cc_{user_id}_{uuid.uuid4().hex[:8]}"
-
-    # Find store tracking URL from stores.json
-    target_url = "https://www.vcommission.com"
-    if os.path.exists("stores.json"):
-        try:
-            with open("stores.json", "r") as f:
-                stores = json.load(f)
-                for store in stores:
-                    if store.get("name", "").strip().lower() == store_name.strip().lower():
-                        target_url = store.get("target_url", target_url)
-                        break
-        except Exception as e:
-            print("JSON Click Error:", str(e))
-
-    conn = get_db()
-    conn.execute("INSERT INTO click_logs (user_id, store_name, sub_id) VALUES (?, ?, ?)",
-                 (user_id, store_name, sub_id))
-    conn.commit()
-    conn.close()
-
-    # Append subid cleanly
-    if "network.vcommission.com" in target_url or "trackier.com" in target_url:
-        separator = "&" if "?" in target_url else "?"
-        final_url = f"{target_url}{separator}subid={sub_id}"
-        return redirect(final_url)
-    else:
-        encoded_target = urllib.parse.quote(target_url, safe="")
-        affiliate_url = f"https://network.vcommission.com/click?aff_id={AFFILIATE_ID}&target={encoded_target}&subid={sub_id}"
-        return redirect(affiliate_url)
+    target_url = request.args.get("url")
+    if target_url:
+        return redirect(target_url)
+    return "Invalid Link", 400
 
 @app.route("/earnings")
 def earnings():
@@ -415,9 +376,8 @@ def missing():
             flash("Missing cashback claim submitted successfully! Status is Under Review.", "success")
     
     claims = conn.execute("SELECT * FROM missing_claims WHERE user_id = ? ORDER BY submitted_at DESC", (session["user_id"],)).fetchall()
-    stores = fetch_vcommission_campaigns()
     conn.close()
-    return render_template("missing.html", claims=claims, stores=stores)
+    return render_template("missing.html", claims=claims)
 
 @app.route("/profile")
 def profile():
@@ -430,7 +390,7 @@ def profile():
     return render_template("profile.html", user=user)
 
 # ==============================================================================
-# --- vCOMMISSION AUTOMATIC POSTBACK / WEBHOOK ---
+# --- AUTOMATIC POSTBACK / WEBHOOK (60/40 Revenue Split Logic) ---
 # ==============================================================================
 @app.route("/api/postback", methods=["GET", "POST"])
 def affiliate_postback():
@@ -499,7 +459,6 @@ def affiliate_postback():
         "admin_profit_60": admin_profit
     }), 200
 
-
 # ==============================================================================
 # --- ADMIN PANEL ROUTES ---
 # ==============================================================================
@@ -567,7 +526,7 @@ def admin_approve_claim(claim_id):
         conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_cashback, user_id))
         conn.execute("UPDATE missing_claims SET status = 'APPROVED' WHERE id = ?", (claim_id,))
         conn.commit()
-        flash(f"Claim #{claim_id} Tracked! ₹{user_cashback} (40%) added to User PENDING balance.", "success")
+        flash(f"Claim #{claim_id} Tracked! ₹{user_cashback} added to User PENDING balance.", "success")
     else:
         flash("Claim not found.", "error")
 
