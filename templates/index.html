@@ -11,9 +11,10 @@
     </div>
 </header>
 
+<!-- लाइव सर्च बार (जावास्क्रिप्ट फिल्टर के साथ) -->
 <div class="search-box">
     <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text" placeholder="Search for brands or products...">
+    <input type="text" id="searchInput" onkeyup="filterBrands()" placeholder="Search for brands or products...">
 </div>
 
 <div class="banner-card">
@@ -24,16 +25,41 @@
 </div>
 
 <h4 class="section-title">Top Partner Stores</h4>
-<div class="store-grid">
+<div class="store-grid" id="brandGrid">
     {% for s in stores %}
     <div class="store-card">
         <span class="badge">{{ s.badge }}</span>
+        
+        <!-- ब्रांड का गूगल फेविकॉन लोगो -->
+        <div class="logo-box" style="width:50px; height:50px; margin: 0 auto 10px auto; display:flex; align-items:center; justify-content:center;">
+            <img src="{{ s.logo }}" alt="{{ s.name }}" style="max-width:100%; max-height:100%; object-fit:contain;">
+        </div>
+
         <h4>{{ s.name }}</h4>
         <p class="rate">{{ s.cashback_rate }}</p>
-        <a href="/go/{{ s.name }}" target="_blank" class="btn-shop">Shop Now &rarr;</a>
+        
+        <!-- vCommission लाइव ट्रैकिंग लिंक रीडायरेक्ट के लिए -->
+        <a href="{{ s.link }}" target="_blank" class="btn-shop">Shop Now &rarr;</a>
     </div>
     {% endfor %}
 </div>
+
+<!-- तुरंत ब्रांड्स को फ़िल्टर करने का जावास्क्रिप्ट -->
+<script>
+    function filterBrands() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let cards = document.getElementsByClassName('store-card');
+        
+        for (let i = 0; i < cards.length; i++) {
+            let title = cards[i].getElementsByTagName('h4')[0].innerText.toLowerCase();
+            if (title.includes(input)) {
+                cards[i].style.display = "";
+            } else {
+                cards[i].style.display = "none";
+            }
+        }
+    }
+</script>
 
 <nav class="bottom-nav">
     <a href="/" class="nav-item active">
