@@ -280,8 +280,13 @@ def redirect_link():
         return "Invalid Link", 400
 
     conn = get_db()
-    sub_id = create_and_log_click(conn, session["user_id"], store_name, target_url)
-    conn.close()
+    try:
+        sub_id = create_and_log_click(conn, int(session["user_id"]), store_name, target_url)
+    finally:
+        conn.close()
+
+    if not sub_id:
+        return "Tracking Sub-ID failed. Please try again.", 500
 
     final_url = build_tracked_url(target_url, sub_id)
     return redirect(final_url)
