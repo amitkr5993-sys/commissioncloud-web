@@ -2,7 +2,7 @@
 {% block content %}
 <div class="app-header">
     <a href="/" style="text-decoration:none; color:#333;"><i class="fa-solid fa-arrow-left"></i></a>
-    <h3>Refer & Earn ₹50 Cash</h3>
+    <h3>Refer & Earn ₹25 Cash</h3>
     <div></div>
 </div>
 
@@ -11,8 +11,8 @@
     <div style="width:60px; height:60px; background:rgba(255,255,255,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:26px;">
         🎁
     </div>
-    <h2 style="margin:0 0 8px; font-size:24px;">Earn Flat ₹50 Cash per Friend</h2>
-    <p style="margin:0; font-size:13px; opacity:0.9;">When your referred friend earns ₹50 or more confirmed cashback, you get a flat ₹50 bonus!</p>
+    <h2 style="margin:0 0 8px; font-size:24px;">Earn Flat ₹25 Cash per Friend</h2>
+    <p style="margin:0; font-size:13px; opacity:0.9;">Get a flat ₹25 referral bonus when your referred friend completes a qualifying order generating at least ₹50 total commission!</p>
 </div>
 
 <!-- Referral Link Box -->
@@ -24,7 +24,7 @@
     </div>
 
     <!-- WhatsApp Share Button -->
-    <a href="https://api.whatsapp.com/send?text=Shop%20via%20my%20link%20on%20Commission%20Cloud%20and%20earn%20extra%20cashback%20on%20Flipkart%20and%20Amazon!%20Join%20now:%20{{ referral_url }}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; background:#25d366; color:white; text-decoration:none; padding:12px; border-radius:8px; font-weight:bold; margin-top:15px;">
+    <a href="https://api.whatsapp.com/send?text=Shop%20via%20my%20link%20on%20Commission%20Cloud%20and%20earn%20cashback%20share%20plus%20%E2%82%B925%20referral%20rewards!%20Join%20now:%20{{ referral_url }}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:10px; background:#25d366; color:white; text-decoration:none; padding:12px; border-radius:8px; font-weight:bold; margin-top:15px;">
         <i class="fa-brands fa-whatsapp" style="font-size:20px;"></i> Share on WhatsApp
     </a>
 </div>
@@ -41,15 +41,35 @@
     <div style="display:flex; gap:12px; margin-bottom:15px;">
         <div style="font-weight:bold; color:#002244; font-size:16px;">2.</div>
         <div style="font-size:13px; color:#475569;">
-            <strong>They Shop:</strong> Your friend signs up and shops at partner stores (Flipkart, Myntra, etc.).
+            <strong>They Shop:</strong> Your friend signs up and shops through partner store links.
         </div>
     </div>
     <div style="display:flex; gap:12px;">
         <div style="font-weight:bold; color:#16a34a; font-size:16px;">3.</div>
         <div style="font-size:13px; color:#475569;">
-            <strong>₹50 Cash Reward:</strong> As soon as your friend's confirmed cashback reaches ₹50, a <strong>flat ₹50 referral bonus</strong> will be credited directly to your account!
+            <strong>₹25 Referral Bonus:</strong> When your referred friend's qualifying order generates at least <strong>₹50 in total commission</strong>, you earn a <strong>flat ₹25 referral bonus</strong>.
         </div>
     </div>
+</div>
+
+<!-- Clear Referral Logic & Rules (English) -->
+<h4 class="section-title" style="margin-top:20px;">Referral Logic & Terms:</h4>
+<div class="card-box" style="padding:15px; font-size:13px; color:#334155; line-height:1.55;">
+    <p style="margin:0 0 10px;">
+        <strong>1. ₹50 Commission Condition:</strong> The ₹25 referral bonus applies only when a referred friend's qualifying order generates at least <strong>₹50 in total commission</strong>.
+    </p>
+    <p style="margin:0 0 10px;">
+        <strong>2. Orders Below ₹50 Commission:</strong> If a friend's first order generates less than ₹50 in total commission (for example, ₹30), no ₹25 referral bonus is triggered for that order. Your friend still receives their standard commission share on that order.
+    </p>
+    <p style="margin:0 0 10px;">
+        <strong>3. Qualifying Later Order:</strong> If the referred friend later places another order (for example, generating ₹50 or ₹60 in total commission) and meets the ₹50 minimum commission requirement for the first time, the one-time <strong>₹25 referral bonus</strong> is unlocked on that qualifying order.
+    </p>
+    <p style="margin:0 0 10px;">
+        <strong>4. One-Time Bonus per Friend:</strong> Each referred friend can unlock the ₹25 referral bonus only once on their first qualifying ₹50+ commission order.
+    </p>
+    <p style="margin:0;">
+        <strong>5. Order Cancellation Rule:</strong> If an order is cancelled, rejected, or refunded, all associated payouts—including user share, referral bonus, and admin share—are reversed to ₹0.
+    </p>
 </div>
 
 <script>
