@@ -20,7 +20,8 @@
 <div class="banner-card">
     <div class="banner-text">
         <h3>Biggest Sales are LIVE!</h3>
-        <p>Get up to 90% Off + 7% Cashback</p>
+        <p>Get up to 90% Off + Up to 7% Commission</p>
+        <small style="display:block; margin-top:4px; opacity:0.92;">Shop via partner links to earn cashback share or refer friends for ₹25 bonus.</small>
     </div>
 </div>
 
@@ -30,15 +31,20 @@
     <div class="store-card">
         <span class="badge">{{ s.badge }}</span>
         
-        <!-- ब्रांड का गूगल फेविकॉन लोगो -->
+        <!-- ब्रांड का लोगो या फ़ॉलबैक अक्षर -->
         <div class="logo-box" style="width:50px; height:50px; margin: 0 auto 10px auto; display:flex; align-items:center; justify-content:center;">
-            <img src="{{ s.logo }}" alt="{{ s.name }}" style="max-width:100%; max-height:100%; object-fit:contain;">
+            {% if s.logo %}
+                <img src="{{ s.logo }}" alt="{{ s.name }}" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <span style="display:none; width:44px; height:44px; border-radius:10px; background:#eef2ff; color:#3730a3; font-weight:700; font-size:18px; align-items:center; justify-content:center;">{{ s.name[:1]|upper }}</span>
+            {% else %}
+                <span style="display:flex; width:44px; height:44px; border-radius:10px; background:#eef2ff; color:#3730a3; font-weight:700; font-size:18px; align-items:center; justify-content:center;">{{ s.name[:1]|upper }}</span>
+            {% endif %}
         </div>
 
         <h4>{{ s.name }}</h4>
         <p class="rate">{{ s.cashback_rate }}</p>
         
-        <!-- vCommission लाइव ट्रैकिंग लिंक रीडायरेक्ट के लिए -->
+        <!-- ट्रैकिंग लिंक रीडायरेक्ट के लिए -->
         <a href="{{ s.link }}" target="_blank" class="btn-shop">Shop Now &rarr;</a>
     </div>
     {% endfor %}
