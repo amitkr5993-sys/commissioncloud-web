@@ -42,7 +42,6 @@ def ensure_earning_tables(conn):
             clicked_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # पुराने click_logs टेबल से टकराव रोकने के लिए सभी ज़रूरी कॉलम सुरक्षित करें
     _ensure_column(conn, "click_logs", "sub_id", "TEXT")
     _ensure_column(conn, "click_logs", "store_name", "TEXT DEFAULT 'Store'")
     _ensure_column(conn, "click_logs", "target_url", "TEXT DEFAULT ''")
@@ -86,9 +85,6 @@ def ensure_earning_tables(conn):
 # ==============================================================================
 
 def create_and_log_click(conn, user_id: int, store_name: str, target_url: str) -> str:
-    """
-    यूज़र के क्लिक पर यूनिक sub_id बनाकर click_logs में स्टोर नाम के साथ सुरक्षित सेव करता है।
-    """
     ensure_earning_tables(conn)
     clean_store = str(store_name or "Store").strip()
     clean_url = str(target_url or "").strip()
