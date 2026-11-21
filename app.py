@@ -29,7 +29,7 @@ _init_conn.close()
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
-REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
+REFERRAL_BONUS_AMOUNT = 25.0  # First-time referral bonus in INR (deducted from admin's share)
 USER_CASHBACK_PERCENT = 0.50  # 50% User Share, 50% Admin Share
 
 # Context processor for global app settings
@@ -433,7 +433,7 @@ def profile():
     return render_template("profile.html", user=user)
 
 # ==============================================================================
-# --- AUTOMATIC POSTBACK / WEBHOOK (50/50 Split via commission_earning.py) ---
+# --- AUTOMATIC POSTBACK / WEBHOOK (Single Source: commission_earning.py) ---
 # ==============================================================================
 @app.route("/api/postback", methods=["GET", "POST"])
 def affiliate_postback():
@@ -487,16 +487,6 @@ def affiliate_postback():
     if result.get("status") == "CANCELLED":
         conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
 
-    if result.get("status") == "CONFIRMED":
-        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
-            referrer_id = friend["referred_by"]
-            conn.execute(
-                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
-                (REFERRAL_BONUS_AMOUNT, referrer_id),
-            )
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
-
     conn.commit()
     conn.close()
 
@@ -508,12 +498,12 @@ def affiliate_postback():
         "order_status": result.get("status"),
         "user_share_50": result.get("user_share"),
         "admin_profit_50": result.get("admin_share"),
+        "referrer_bonus": result.get("referrer_bonus", 0.0),
     }), 200
 
 # ==============================================================================
 # --- ADMIN PANEL ROUTES ---
 # ==============================================================================
-
 @app.route("/admin/payouts")
 def admin_payouts():
     conn = get_db()
@@ -592,16 +582,6 @@ def admin_order_status():
     if result.get("status") == "CANCELLED":
         conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
 
-    if result.get("status") == "CONFIRMED":
-        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
-            referrer_id = friend["referred_by"]
-            conn.execute(
-                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
-                (REFERRAL_BONUS_AMOUNT, referrer_id),
-            )
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
-
     conn.commit()
     conn.close()
     flash(f"Order {order_id} updated to {result.get('status')}.", "success")
@@ -660,18 +640,8 @@ def admin_confirm_claim(claim_id):
             (user_share, user_share, user_id),
         )
         conn.execute("UPDATE missing_claims SET status = 'CONFIRMED' WHERE id = ?", (claim_id,))
-
-        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
-            referrer_id = friend["referred_by"]
-            conn.execute(
-                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
-                (REFERRAL_BONUS_AMOUNT, referrer_id),
-            )
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
-
         conn.commit()
-        flash("Cashback approved and referral reward processed successfully!", "success")
+        flash("Cashback approved and confirmed successfully!", "success")
     else:
         flash("Claim not eligible for confirmation.", "error")
 
