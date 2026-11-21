@@ -13,6 +13,7 @@ from commission_earning import (
     create_and_log_click,
     build_tracked_url,
     get_user_from_click,
+    get_active_recent_clicks,
     record_commission_event,
     get_user_earning_summary,
 )
@@ -239,7 +240,7 @@ def dashboard():
         stores.append({
             "name": item["name"],
             "badge": item.get("badge", "Active Link"),
-            "cashback_rate": "50% Commission Share",
+            "cashback_rate": "Up to 7% commission",
             "link": f"/redirect?store={encoded_store}&url={encoded_url}",
             "logo": ""
         })
@@ -254,7 +255,7 @@ def dashboard():
                 stores.append({
                     "name": camp["name"],
                     "badge": "Live API",
-                    "cashback_rate": "50% Commission Share",
+                    "cashback_rate": "Up to 7% commission",
                     "link": f"/redirect?store={encoded_store}&url={encoded_url}",
                     "logo": camp["logo"]
                 })
@@ -298,10 +299,7 @@ def earnings():
 
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    clicks = conn.execute(
-        "SELECT * FROM click_logs WHERE user_id = ? ORDER BY clicked_at DESC LIMIT 10",
-        (session["user_id"],),
-    ).fetchall()
+    clicks = get_active_recent_clicks(conn, int(session["user_id"]), limit=10)
     summary = get_user_earning_summary(conn, session["user_id"])
     conn.close()
 
