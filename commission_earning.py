@@ -136,6 +136,34 @@ def get_user_from_click(conn, sub_id: str):
     ).fetchone()
 
 
+def get_active_recent_clicks(conn, user_id: int, limit: int = 10):
+    """
+    केवल उन्हीं शॉपिंग/ऑर्डर गतिविधियों को दिखाता है जिनका ऑर्डर PENDING है।
+    CONFIRMED या CANCELLED होते ही एंट्री अपने-आप हट जाती है, और नया PENDING ऑर्डर आने पर नया दिखता है।
+    """
+    ensure_earning_tables(conn)
+    return conn.execute(
+        """
+        SELECT
+            c.id,
+            c.sub_id,
+            COALESCE(NULLIF(ac.store_name, ''), NULLIF(c.store_name, ''), 'Store') AS store_name,
+            COALESCE(c.clicked_at, ac.updated_at) AS clicked_at,
+            ac.order_id,
+            ac.user_share,
+            ac.status
+        FROM affiliate_commissions ac
+        LEFT JOIN click_logs c
+            ON ac.sub_id != '' AND c.sub_id = ac.sub_id AND c.user_id = ac.user_id
+        WHERE ac.user_id = ?
+          AND UPPER(ac.status) = 'PENDING'
+        ORDER BY ac.id DESC
+        LIMIT ?
+        """,
+        (int(user_id), int(limit)),
+    ).fetchall()
+
+
 # ==============================================================================
 # --- FIRST REFERRAL ORDER HELPERS (₹25 FROM ADMIN 50% SHARE) ---
 # ==============================================================================
