@@ -102,7 +102,7 @@ AFFILIATE_STORES = [
         "domain": "dotandkey.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/FkcmIPc",
+        "url": "https://bitli.in/F8jSEnN",
     },
     {
         "id": "blinkit",
@@ -110,7 +110,7 @@ AFFILIATE_STORES = [
         "domain": "blinkit.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/Tp3qLrd",
+        "url": "https://bitli.in/FkcmIPc",
     },
     {
         "id": "agoda",
@@ -118,7 +118,7 @@ AFFILIATE_STORES = [
         "domain": "agoda.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/XSsddh8",
+        "url": "https://bitli.in/Tp3qLrd",
     },
     {
         "id": "air_india",
@@ -126,7 +126,7 @@ AFFILIATE_STORES = [
         "domain": "airindia.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/o5Yg8wg",
+        "url": "https://bitli.in/XSsddh8",
     },
     {
         "id": "dell",
@@ -134,7 +134,7 @@ AFFILIATE_STORES = [
         "domain": "dell.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/u5fI6pv",
+        "url": "https://bitli.in/o5Yg8wg",
     },
     {
         "id": "hamara_mall",
@@ -142,7 +142,7 @@ AFFILIATE_STORES = [
         "domain": "hamaramall.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/9d93h7D",
+        "url": "https://bitli.in/u5fI6pv",
     },
     {
         "id": "havells",
@@ -150,7 +150,7 @@ AFFILIATE_STORES = [
         "domain": "havells.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/ADbtog8",
+        "url": "https://bitli.in/9d93h7D",
     },
     {
         "id": "mivi",
@@ -158,7 +158,7 @@ AFFILIATE_STORES = [
         "domain": "mivi.in",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/oji4VVi",
+        "url": "https://bitli.in/ADbtog8",
     },
     {
         "id": "muscleblaze",
@@ -166,7 +166,7 @@ AFFILIATE_STORES = [
         "domain": "muscleblaze.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/stWRpy9",
+        "url": "https://bitli.in/oji4VVi",
     },
     {
         "id": "oppo",
@@ -174,7 +174,7 @@ AFFILIATE_STORES = [
         "domain": "oppo.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/jKsRxOr",
+        "url": "https://bitli.in/stWRpy9",
     },
     {
         "id": "realme",
@@ -182,7 +182,7 @@ AFFILIATE_STORES = [
         "domain": "realme.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/LfaJxVd",
+        "url": "https://bitli.in/jKsRxOr",
     },
     {
         "id": "shopsy",
@@ -190,7 +190,7 @@ AFFILIATE_STORES = [
         "domain": "shopsy.in",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/4l4aOvi",
+        "url": "https://bitli.in/LfaJxVd",
     },
     {
         "id": "swiggy_instamart",
@@ -198,7 +198,7 @@ AFFILIATE_STORES = [
         "domain": "swiggy.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/Ky21Evt",
+        "url": "https://bitli.in/4l4aOvi",
     },
     {
         "id": "zandu_care",
@@ -206,7 +206,7 @@ AFFILIATE_STORES = [
         "domain": "zanduayurveda.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/aFR9mvP",
+        "url": "https://bitli.in/Ky21Evt",
     },
     {
         "id": "truemeds",
@@ -214,7 +214,7 @@ AFFILIATE_STORES = [
         "domain": "truemeds.in",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://bitli.in/hmoTfby",
+        "url": "https://bitli.in/aFR9mvP",
     },
     {
         "id": "boat",
@@ -222,7 +222,7 @@ AFFILIATE_STORES = [
         "domain": "boat-lifestyle.com",
         "source": "Affiliate",
         "badge": "Logo Ready",
-        "url": "",
+        "url": "https://bitli.in/hmoTfby",
     },
 ]
 
