@@ -233,16 +233,20 @@ def dashboard():
 
     stores = []
 
-    # 1. affiliate_links.py से एक्टिव स्टोर्स/लिंक्स जोड़ें (जैसे Myntra https://myntr.it/LlapLAs)
+    # 1. affiliate_links.py से केवल उन्हीं स्टोर्स को जोड़ें जिनमें URL मौजूद हो, और उनका ऑटो-लोगो पास करें
     for item in get_active_stores():
-        encoded_url = urllib.parse.quote(item["url"], safe="")
+        raw_url = str(item.get("url") or "").strip()
+        if not raw_url:
+            continue
+        encoded_url = urllib.parse.quote(raw_url, safe="")
         encoded_store = urllib.parse.quote(item["name"], safe="")
         stores.append({
             "name": item["name"],
             "badge": item.get("badge", "Active Link"),
             "cashback_rate": "Up to 7% commission",
             "link": f"/redirect?store={encoded_store}&url={encoded_url}",
-            "logo": ""
+            "url": raw_url,
+            "logo": item.get("logo", ""),
         })
 
     # 2. vCommission API से लाइव ब्रांड्स फेच करें
@@ -250,14 +254,18 @@ def dashboard():
         vc_campaigns = get_all_campaigns()
         if vc_campaigns:
             for camp in vc_campaigns:
-                encoded_url = urllib.parse.quote(camp["link"], safe="")
+                camp_link = str(camp.get("link") or "").strip()
+                if not camp_link:
+                    continue
+                encoded_url = urllib.parse.quote(camp_link, safe="")
                 encoded_store = urllib.parse.quote(camp["name"], safe="")
                 stores.append({
                     "name": camp["name"],
                     "badge": "Live API",
                     "cashback_rate": "Up to 7% commission",
                     "link": f"/redirect?store={encoded_store}&url={encoded_url}",
-                    "logo": camp["logo"]
+                    "url": camp_link,
+                    "logo": camp.get("logo", ""),
                 })
     except Exception as e:
         print(f"vCommission API Fetch Error: {e}")
