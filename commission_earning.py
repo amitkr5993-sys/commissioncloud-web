@@ -1,632 +1,266 @@
-import os
 import uuid
-import urllib.parse
-from datetime import datetime
-from flask import Flask, render_template, request, redirect, jsonify, session, flash, url_for
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
-from models import init_db, get_db
-from vcommission import get_all_campaigns
 
-app = Flask(__name__)
-app.secret_key = "commission_cloud_secret_key_production"
+USER_SHARE_PERCENT = 0.50  # 50% User share, 50% Admin share
 
-init_db()
 
-# Google Cloud OAuth Client ID
-GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
+def calculate_commission_split(total_commission: float) -> dict:
+    total = round(max(0.0, float(total_commission)), 2)
+    user_share = round(total * USER_SHARE_PERCENT, 2)
+    admin_share = round(total - user_share, 2)
+    return {
+        "total_commission": total,
+        "user_share": user_share,
+        "admin_share": admin_share,
+    }
 
-# INRDeals Credentials & Configuration
-INRDEALS_API_KEY = "YOUR_INRDEALS_API_KEY_HERE"
-INRDEALS_SOURCE_ID = "YOUR_SOURCE_ID_HERE"
-MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
-REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
-USER_CASHBACK_PERCENT = 0.40  # 40% User Share, 60% Admin Margin
 
-# Context processor for global app settings
-@app.context_processor
-def inject_settings():
-    conn = get_db()
-    settings_rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
-    conn.close()
-    settings_dict = {row["key"]: row["value"] for row in settings_rows}
-    return dict(app_settings=settings_dict)
-
-# ==============================================================================
-# --- LANDING & ONBOARDING ROUTES ---
-# ==============================================================================
-
-@app.route('/')
-def home():
-    if "user_id" in session:
-        return redirect("/dashboard")
-    return render_template('welcome.html')
-
-@app.route('/welcome')
-def welcome():
-    return redirect('/')
-
-# ==============================================================================
-# --- AUTHENTICATION ROUTES (Google + Email + Phone + Auto Referral) ---
-# ==============================================================================
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if "user_id" in session:
-        return redirect("/dashboard")
-
-    ref_code = request.args.get("ref", "").strip()
-
-    if request.method == "POST":
-        login_type = request.form.get("login_type", "email")
-        referral_input = request.form.get("referral_code", "").strip() or ref_code
-        conn = get_db()
-
-        # 1. Instant Email Login Flow (No Password Needed)
-        if login_type == "email":
-            email = request.form.get("email", "").strip().lower()
-            if not email or "@" not in email:
-                flash("Please enter a valid Email address.", "error")
-                conn.close()
-                return redirect(url_for("login", ref=ref_code))
-
-            user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-            if user:
-                session["user_id"] = user["id"]
-                conn.close()
-                flash(f"Welcome back, {user['name']}!", "success")
-                return redirect("/dashboard")
-            else:
-                referrer = None
-                if referral_input:
-                    referrer = conn.execute("SELECT id FROM users WHERE referral_code = ?", (referral_input,)).fetchone()
-
-                referrer_id = referrer["id"] if referrer else None
-                new_user_code = f"USER{uuid.uuid4().hex[:5].upper()}"
-                user_prefix = email.split("@")[0].capitalize()
-                default_name = f"User {user_prefix}"
-
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO users (name, email, phone, password, referral_code, confirmed_balance, pending_balance, referred_by, referral_bonus_given)
-                    VALUES (?, ?, NULL, NULL, ?, 0.0, 0.0, ?, 0)
-                ''', (default_name, email, new_user_code, referrer_id))
-                
-                new_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-
-                session["user_id"] = new_id
-                flash("Account created instantly! Welcome to Commission Cloud.", "success")
-                return redirect("/dashboard")
-
-        # 2. Phone + Password Flow
-        elif login_type == "phone":
-            phone = request.form.get("phone", "").strip()
-            password = request.form.get("password", "").strip()
-
-            if not phone or len(phone) < 10 or not password:
-                flash("Please enter a valid 10-digit Mobile Number and Password.", "error")
-                conn.close()
-                return redirect(url_for("login", ref=ref_code))
-
-            user = conn.execute("SELECT * FROM users WHERE phone = ?", (phone,)).fetchone()
-            if user:
-                if user["password"] == password:
-                    session["user_id"] = user["id"]
-                    conn.close()
-                    flash(f"Welcome back, {user['name']}!", "success")
-                    return redirect("/dashboard")
-                else:
-                    conn.close()
-                    flash("Incorrect password. Please try again.", "error")
-                    return redirect(url_for("login", ref=ref_code))
-            else:
-                referrer = None
-                if referral_input:
-                    referrer = conn.execute("SELECT id FROM users WHERE referral_code = ?", (referral_input,)).fetchone()
-
-                referrer_id = referrer["id"] if referrer else None
-                new_user_code = f"USER{uuid.uuid4().hex[:5].upper()}"
-                default_name = f"User {phone[-4:]}"
-                dummy_email = f"user_{phone}@commissioncloud.local"
-
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO users (name, email, phone, password, referral_code, confirmed_balance, pending_balance, referred_by, referral_bonus_given)
-                    VALUES (?, ?, ?, ?, ?, 0.0, 0.0, ?, 0)
-                ''', (default_name, dummy_email, phone, password, new_user_code, referrer_id))
-                
-                new_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
-
-                session["user_id"] = new_id
-                flash("Account created successfully! Welcome to Commission Cloud.", "success")
-                return redirect("/dashboard")
-
-    return render_template("login.html", auto_ref=ref_code)
-
-@app.route("/api/google-login", methods=["POST"])
-def google_login():
-    data = request.get_json() or {}
-    token = data.get("credential")
-    referral_input = (data.get("referral_code") or "").strip()
-
-    if not token:
-        return jsonify({"status": "error", "message": "Missing Google token"}), 400
-
-    try:
-        id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-
-        email = id_info.get("email")
-        name = id_info.get("name") or (email.split("@")[0] if email else "User")
-
-        if not email:
-            return jsonify({"status": "error", "message": "Google did not provide an email"}), 400
-
-        conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-
-        if user:
-            session["user_id"] = user["id"]
-            conn.close()
-            return jsonify({"status": "success", "message": "Logged in successfully"})
-        else:
-            referrer_id = None
-            if referral_input:
-                ref_user = conn.execute("SELECT id FROM users WHERE referral_code = ?", (referral_input,)).fetchone()
-                if ref_user:
-                    referrer_id = ref_user["id"]
-
-            new_ref_code = f"USER{uuid.uuid4().hex[:5].upper()}"
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO users (name, email, phone, password, referral_code, confirmed_balance, pending_balance, referred_by, referral_bonus_given)
-                VALUES (?, ?, NULL, NULL, ?, 0.0, 0.0, ?, 0)
-            ''', (name, email, new_ref_code, referrer_id))
-
-            new_user_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-
-            session["user_id"] = new_user_id
-            return jsonify({"status": "success", "message": "Account created successfully"})
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Verification failed: {str(e)}"}), 400
-
-@app.route("/logout")
-def logout():
-    session.pop("user_id", None)
-    flash("You have been logged out successfully.", "info")
-    return redirect("/login")
+def ensure_earning_tables(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS click_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sub_id TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            store_name TEXT NOT NULL,
+            target_url TEXT NOT NULL,
+            clicked_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS affiliate_commissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            sub_id TEXT DEFAULT '',
+            store_name TEXT DEFAULT '',
+            total_commission REAL NOT NULL,
+            user_share REAL NOT NULL,
+            admin_share REAL NOT NULL,
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
 
 
 # ==============================================================================
-# --- MAIN APPLICATION DASHBOARD (vCOMMISSION API INTEGRATED) ---
+# --- CLICK TRACKER FUNCTIONS ---
 # ==============================================================================
 
-@app.route("/dashboard")
-@app.route("/home")
-def dashboard():
-    if "user_id" not in session:
-        return redirect("/login")
+def create_and_log_click(conn, user_id: int, store_name: str, target_url: str) -> str:
+    """
+    यूज़र के क्लिक पर यूनिक sub_id बनाकर click_logs में स्टोर नाम के साथ सेव करता है।
+    """
+    ensure_earning_tables(conn)
+    clean_store = str(store_name or "Store").strip()
+    clean_url = str(target_url or "").strip()
+    sub_id = f"SUB{uuid.uuid4().hex[:12].upper()}"
 
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    conn.close()
+    conn.execute(
+        """
+        INSERT INTO click_logs (sub_id, user_id, store_name, target_url, clicked_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+        """,
+        (sub_id, int(user_id), clean_store, clean_url),
+    )
+    conn.commit()
+    return sub_id
 
-    if not user:
-        session.pop("user_id", None)
-        return redirect("/login")
 
-    # vCommission API से लाइव ब्रांड्स फेच करें (हार्ड-कोडेड डेटाबेस स्टोर्स की जगह)
-    stores = []
-    try:
-        vc_campaigns = get_all_campaigns()
-        if vc_campaigns:
-            for camp in vc_campaigns:
-                stores.append({
-                    "name": camp["name"],
-                    "badge": "Live API",
-                    "cashback_rate": "Best Cashback",
-                    "link": f"/redirect?url={urllib.parse.quote(camp['link'])}",
-                    "logo": camp["logo"]
-                })
-    except Exception as e:
-        print(f"vCommission API Fetch Error: {e}")
+def build_tracked_url(target_url: str, sub_id: str) -> str:
+    clean_url = str(target_url or "").strip()
+    if not clean_url or not sub_id:
+        return clean_url
+    sep = "&" if "?" in clean_url else "?"
+    return f"{clean_url}{sep}subid={sub_id}"
 
-    return render_template("index.html", stores=stores, user=user)
 
-@app.route("/signup")
-def signup():
-    ref_code = request.args.get("ref", "").strip()
-    return redirect(url_for("login", ref=ref_code))
+def get_user_from_click(conn, sub_id: str):
+    ensure_earning_tables(conn)
+    clean_sub = str(sub_id or "").strip()
+    if not clean_sub:
+        return None
+    return conn.execute(
+        "SELECT id, sub_id, user_id, store_name, target_url, clicked_at FROM click_logs WHERE sub_id = ?",
+        (clean_sub,),
+    ).fetchone()
 
-@app.route("/redirect")
-def redirect_link():
-    if "user_id" not in session:
-        return redirect("/login")
-    target_url = request.args.get("url")
-    if target_url:
-        return redirect(target_url)
-    return "Invalid Link", 400
 
-@app.route("/earnings")
-def earnings():
-    if "user_id" not in session:
-        return redirect("/login")
+# ==============================================================================
+# --- COMMISSION & CANCELLATION ENGINE (50/50 SPLIT) ---
+# ==============================================================================
 
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    clicks = conn.execute("SELECT * FROM click_logs WHERE user_id = ? ORDER BY clicked_at DESC LIMIT 10", (session["user_id"],)).fetchall()
-    conn.close()
-    return render_template("earnings.html", user=user, clicks=clicks)
+def normalize_order_status(raw_status: str):
+    status_norm = str(raw_status or "").strip().upper()
+    if status_norm in ["PENDING", "TRACKED"]:
+        return "PENDING"
+    if status_norm in ["CONFIRMED", "APPROVED", "COMPLETED"]:
+        return "CONFIRMED"
+    if status_norm in ["CANCELLED", "CANCELED", "REJECTED", "DECLINED", "RETURNED", "REFUNDED"]:
+        return "CANCELLED"
+    return None
 
-@app.route("/withdraw", methods=["GET", "POST"])
-def withdraw():
-    if "user_id" not in session:
-        return redirect("/login")
 
-    conn = get_db()
-    user_id = session["user_id"]
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+def record_commission_event(
+    conn,
+    order_id: str,
+    user_id: int,
+    total_commission: float,
+    event_status: str,
+    store_name: str = "",
+    sub_id: str = "",
+) -> dict:
+    """
+    शॉपिंग/कमीशन इवेंट को 50/50 स्प्लिट और सटीक कैंसिलेशन/कन्फर्मेशन लॉजिक के साथ प्रोसेस करता है।
+    event_status: 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+    """
+    ensure_earning_tables(conn)
 
-    if request.method == "POST":
-        try:
-            amount = float(request.form.get("amount", 0))
-        except ValueError:
-            amount = 0.0
+    clean_order_id = str(order_id or "").strip()
+    clean_store = str(store_name or "").strip()
+    clean_sub = str(sub_id or "").strip()
+    new_status = normalize_order_status(event_status)
 
-        payout_method = request.form.get("payout_method")
-        
-        if payout_method == "UPI":
-            payment_details = f"UPI: {request.form.get('upi_id', '').strip()}"
-        else:
-            acc = request.form.get("account_number", "").strip()
-            ifsc = request.form.get("ifsc_code", "").strip()
-            name = request.form.get("holder_name", "").strip()
-            payment_details = f"Name: {name} | A/C: {acc} | IFSC: {ifsc}"
+    if not clean_order_id or not user_id:
+        return {"ok": False, "error": "Invalid order_id or user_id"}
 
-        if amount < MINIMUM_WITHDRAWAL:
-            flash(f"Minimum withdrawal amount is ₹{MINIMUM_WITHDRAWAL}.", "error")
-            conn.close()
-            return redirect("/withdraw")
+    if not new_status:
+        return {"ok": False, "error": f"Unsupported status: {event_status}"}
 
-        if amount > user["confirmed_balance"]:
-            flash("Insufficient confirmed balance in your account.", "error")
-            conn.close()
-            return redirect("/withdraw")
+    user_row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user_row:
+        return {"ok": False, "error": "User not found"}
 
-        cursor = conn.cursor()
-        cursor.execute("UPDATE users SET confirmed_balance = confirmed_balance - ? WHERE id = ?", (amount, user_id))
-        cursor.execute('''
-            INSERT INTO payout_requests (user_id, amount, payout_method, payment_details, status)
-            VALUES (?, ?, ?, ?, 'PENDING')
-        ''', (user_id, amount, payout_method, payment_details))
+    split = calculate_commission_split(total_commission)
+
+    existing = conn.execute(
+        "SELECT * FROM affiliate_commissions WHERE order_id = ?",
+        (clean_order_id,),
+    ).fetchone()
+
+    # 1. नया ऑर्डर रिकॉर्ड
+    if not existing:
+        if split["total_commission"] <= 0 and new_status != "CANCELLED":
+            return {"ok": False, "error": "Commission must be greater than 0"}
+
+        conn.execute(
+            """
+            INSERT INTO affiliate_commissions
+                (order_id, user_id, sub_id, store_name, total_commission, user_share, admin_share, status, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (
+                clean_order_id,
+                user_id,
+                clean_sub,
+                clean_store,
+                split["total_commission"],
+                split["user_share"],
+                split["admin_share"],
+                new_status,
+            ),
+        )
+
+        if new_status == "PENDING":
+            conn.execute(
+                "UPDATE users SET pending_balance = ROUND(pending_balance + ?, 2) WHERE id = ?",
+                (split["user_share"], user_id),
+            )
+        elif new_status == "CONFIRMED":
+            conn.execute(
+                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
+                (split["user_share"], user_id),
+            )
+
         conn.commit()
-        conn.close()
+        return {
+            "ok": True,
+            "order_id": clean_order_id,
+            "store_name": clean_store,
+            "status": new_status,
+            "user_share": split["user_share"],
+            "admin_share": split["admin_share"],
+        }
 
-        flash("Withdrawal request submitted successfully! Amount will be credited within 24 hours.", "success")
-        return redirect("/payment-history")
+    # 2. पहले से मौजूद ऑर्डर का स्टेटस अपडेट
+    prev_status = str(existing["status"]).upper()
+    share = float(existing["user_share"])
 
-    history = conn.execute("SELECT * FROM payout_requests WHERE user_id = ? ORDER BY requested_at DESC LIMIT 5", (user_id,)).fetchall()
-    conn.close()
-    return render_template("withdraw.html", user=user, history=history, min_limit=MINIMUM_WITHDRAWAL)
+    if prev_status == new_status:
+        return {"ok": True, "order_id": clean_order_id, "status": new_status, "duplicate_ignored": True}
 
-@app.route("/payment-history")
-def payment_history():
-    if "user_id" not in session:
-        return redirect("/login")
+    if prev_status == "CANCELLED":
+        return {"ok": True, "order_id": clean_order_id, "status": "CANCELLED", "already_cancelled": True}
 
-    conn = get_db()
-    user_id = session["user_id"]
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    
-    history = conn.execute('''
-        SELECT * FROM payout_requests 
-        WHERE user_id = ? 
-        ORDER BY requested_at DESC
-    ''', (user_id,)).fetchall()
-    conn.close()
-    
-    return render_template("history.html", user=user, history=history)
-
-@app.route("/refer")
-def refer():
-    if "user_id" not in session:
-        return redirect("/login")
-
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    
-    referred_friends = conn.execute('''
-        SELECT name, confirmed_balance, referral_bonus_given 
-        FROM users 
-        WHERE referred_by = ?
-    ''', (session["user_id"],)).fetchall()
-    conn.close()
-
-    referral_url = f"{request.host_url.rstrip('/')}/login?ref={user['referral_code']}"
-    return render_template("refer.html", user=user, referral_url=referral_url, friends=referred_friends)
-
-@app.route("/missing", methods=["GET", "POST"])
-def missing():
-    if "user_id" not in session:
-        return redirect("/login")
-
-    conn = get_db()
-    if request.method == "POST":
-        store_name = request.form.get("store_name", "").strip()
-        order_id = request.form.get("order_id", "").strip()
-        try:
-            amount = float(request.form.get("amount", 0.0))
-        except ValueError:
-            amount = 0.0
-
-        existing = conn.execute("SELECT id FROM missing_claims WHERE user_id = ? AND order_id = ?", 
-                                (session["user_id"], order_id)).fetchone()
-        if existing:
-            flash("You have already submitted a claim for this Order ID.", "error")
-        else:
-            conn.execute("INSERT INTO missing_claims (user_id, store_name, order_id, order_amount, status) VALUES (?, ?, ?, ?, 'PENDING')",
-                         (session["user_id"], store_name, order_id, amount))
-            conn.commit()
-            flash("Missing cashback claim submitted successfully! Status is Under Review.", "success")
-    
-    claims = conn.execute("SELECT * FROM missing_claims WHERE user_id = ? ORDER BY submitted_at DESC", (session["user_id"],)).fetchall()
-    conn.close()
-    return render_template("missing.html", claims=claims)
-
-@app.route("/profile")
-def profile():
-    if "user_id" not in session:
-        return redirect("/login")
-
-    conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    conn.close()
-    return render_template("profile.html", user=user)
-
-# ==============================================================================
-# --- AUTOMATIC POSTBACK / WEBHOOK (60/40 Revenue Split Logic) ---
-# ==============================================================================
-@app.route("/api/postback", methods=["GET", "POST"])
-def affiliate_postback():
-    data = request.args if request.method == "GET" else request.form
-    
-    sub_id = data.get("subid") or data.get("sub_id")
-    order_id = data.get("order_id") or data.get("orderid") or "NA"
-    status = str(data.get("status", "pending")).strip().lower()
-    
-    try:
-        total_payout = float(data.get("payout") or data.get("commission") or 0.0)
-    except ValueError:
-        total_payout = 0.0
-
-    if not sub_id or total_payout <= 0:
-        return jsonify({"status": "ignored", "message": "Missing subid or zero commission"}), 200
-
-    conn = get_db()
-
-    click = conn.execute("SELECT user_id, store_name FROM click_logs WHERE sub_id = ?", (sub_id,)).fetchone()
-    if not click:
-        conn.close()
-        return jsonify({"status": "error", "message": "Click Sub-ID not found"}), 404
-
-    user_id = click["user_id"]
-    user_share = round(total_payout * USER_CASHBACK_PERCENT, 2)
-    admin_profit = round(total_payout - user_share, 2)
-
-    duplicate_claim = conn.execute("SELECT id, status FROM missing_claims WHERE order_id = ?", (order_id,)).fetchone()
-    if duplicate_claim and str(duplicate_claim["status"]).upper() in ["APPROVED", "CONFIRMED"]:
-        conn.close()
-        return jsonify({"status": "ignored", "message": "Order already processed manually"}), 200
-
-    if status in ["pending", "tracked"]:
-        conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_share, user_id))
-        conn.commit()
-
-    elif status in ["cancelled", "declined", "rejected"]:
-        conn.execute("UPDATE users SET pending_balance = MAX(0.0, pending_balance - ?) WHERE id = ?", (user_share, user_id))
-        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
-        conn.commit()
-
-    elif status in ["confirmed", "approved"]:
-        conn.execute('''
-            UPDATE users 
-            SET pending_balance = MAX(0.0, pending_balance - ?),
-                confirmed_balance = confirmed_balance + ? 
+    if prev_status == "PENDING" and new_status == "CONFIRMED":
+        conn.execute(
+            """
+            UPDATE users
+            SET pending_balance = MAX(0.0, ROUND(pending_balance - ?, 2)),
+                confirmed_balance = ROUND(confirmed_balance + ?, 2)
             WHERE id = ?
-        ''', (user_share, user_share, user_id))
+            """,
+            (share, share, user_id),
+        )
 
-        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
-            referrer_id = friend["referred_by"]
-            conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
-                         (REFERRAL_BONUS_AMOUNT, referrer_id))
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
+    elif prev_status == "PENDING" and new_status == "CANCELLED":
+        conn.execute(
+            """
+            UPDATE users
+            SET pending_balance = MAX(0.0, ROUND(pending_balance - ?, 2))
+            WHERE id = ?
+            """,
+            (share, user_id),
+        )
 
-        conn.commit()
+    elif prev_status == "CONFIRMED" and new_status == "CANCELLED":
+        conn.execute(
+            """
+            UPDATE users
+            SET confirmed_balance = MAX(0.0, ROUND(confirmed_balance - ?, 2))
+            WHERE id = ?
+            """,
+            (share, user_id),
+        )
 
-    conn.close()
-    return jsonify({
-        "status": "success",
-        "user_id": user_id,
-        "total_commission": total_payout,
-        "user_share_40": user_share,
-        "admin_profit_60": admin_profit
-    }), 200
-
-# ==============================================================================
-# --- ADMIN PANEL ROUTES ---
-# ==============================================================================
-
-@app.route("/admin/payouts")
-def admin_payouts():
-    conn = get_db()
-    requests_list = conn.execute('''
-        SELECT p.*, u.name, u.email, u.phone 
-        FROM payout_requests p
-        JOIN users u ON p.user_id = u.id
-        ORDER BY p.status DESC, p.requested_at ASC
-    ''').fetchall()
-
-    claims_list = conn.execute('''
-        SELECT c.*, u.name, u.email, u.phone 
-        FROM missing_claims c
-        JOIN users u ON c.user_id = u.id
-        ORDER BY c.submitted_at DESC
-    ''').fetchall()
-
-    conn.close()
-    return render_template("admin_payouts.html", requests=requests_list, claims=claims_list)
-
-@app.route("/admin/pay-confirm/<int:req_id>", methods=["POST"])
-def admin_pay_confirm(req_id):
-    utr = request.form.get("utr_number", "MANUAL_PAY").strip()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    conn = get_db()
-    conn.execute('''
-        UPDATE payout_requests 
-        SET status = 'PAID', utr_number = ?, processed_at = ?
-        WHERE id = ?
-    ''', (utr, now, req_id))
+    conn.execute(
+        """
+        UPDATE affiliate_commissions
+        SET status = ?, updated_at = datetime('now')
+        WHERE order_id = ?
+        """,
+        (new_status, clean_order_id),
+    )
     conn.commit()
-    conn.close()
-    flash("Payout confirmed and marked as PAID successfully!", "success")
-    return redirect("/admin/payouts")
 
-@app.route("/admin/approve-claim/<int:claim_id>", methods=["POST"])
-def admin_approve_claim(claim_id):
-    try:
-        total_commission = float(request.form.get("total_commission", 0.0))
-    except ValueError:
-        total_commission = 0.0
+    return {
+        "ok": True,
+        "order_id": clean_order_id,
+        "previous_status": prev_status,
+        "status": new_status,
+        "user_share": share,
+        "admin_share": float(existing["admin_share"]),
+    }
 
-    if total_commission <= 0:
-        flash("Please enter a valid commission amount greater than 0.", "error")
-        return redirect("/admin/payouts")
 
-    user_cashback = round(total_commission * USER_CASHBACK_PERCENT, 2)
+def get_user_earning_summary(conn, user_id: int) -> dict:
+    ensure_earning_tables(conn)
+    user = conn.execute(
+        "SELECT pending_balance, confirmed_balance FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
 
-    conn = get_db()
-    claim = conn.execute("SELECT * FROM missing_claims WHERE id = ?", (claim_id,)).fetchone()
-    
-    if claim:
-        current_status = str(claim["status"]).strip().upper()
-        if current_status in ["APPROVED", "CONFIRMED"]:
-            flash("Claim has already been approved previously.", "error")
-            conn.close()
-            return redirect("/admin/payouts")
+    rows = conn.execute(
+        """
+        SELECT order_id, store_name, total_commission, user_share, admin_share, status, updated_at
+        FROM affiliate_commissions
+        WHERE user_id = ?
+        ORDER BY id DESC
+        """,
+        (user_id,),
+    ).fetchall()
 
-        user_id = claim["user_id"]
-        conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_cashback, user_id))
-        conn.execute("UPDATE missing_claims SET status = 'APPROVED' WHERE id = ?", (claim_id,))
-        conn.commit()
-        flash(f"Claim #{claim_id} Tracked! ₹{user_cashback} added to User PENDING balance.", "success")
-    else:
-        flash("Claim not found.", "error")
-
-    conn.close()
-    return redirect("/admin/payouts")
-
-@app.route("/admin/confirm-claim/<int:claim_id>", methods=["POST"])
-def admin_confirm_claim(claim_id):
-    try:
-        cashback_amount = float(request.form.get("cashback_amount", 0.0))
-    except ValueError:
-        cashback_amount = 0.0
-
-    conn = get_db()
-    claim = conn.execute("SELECT * FROM missing_claims WHERE id = ?", (claim_id,)).fetchone()
-
-    if claim and str(claim["status"]).strip().upper() == "APPROVED":
-        user_id = claim["user_id"]
-
-        conn.execute("UPDATE users SET pending_balance = MAX(0.0, pending_balance - ?), confirmed_balance = confirmed_balance + ? WHERE id = ?",
-                     (cashback_amount, cashback_amount, user_id))
-        conn.execute("UPDATE missing_claims SET status = 'CONFIRMED' WHERE id = ?", (claim_id,))
-
-        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
-            referrer_id = friend["referred_by"]
-            conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
-                         (REFERRAL_BONUS_AMOUNT, referrer_id))
-            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
-
-        conn.commit()
-        flash("Cashback approved and referral reward processed successfully!", "success")
-    else:
-        flash("Claim not eligible for confirmation.", "error")
-
-    conn.close()
-    return redirect("/admin/payouts")
-
-@app.route("/admin/update-support", methods=["POST"])
-def update_support():
-    whatsapp = request.form.get("support_whatsapp", "").strip()
-
-    conn = get_db()
-    conn.execute("UPDATE app_settings SET value = ? WHERE key = 'support_whatsapp'", (whatsapp,))
-    conn.commit()
-    conn.close()
-
-    flash("WhatsApp support number updated successfully!", "success")
-    return redirect("/admin/payouts")
-
-# ==============================================================================
-# --- LEGAL ROUTES ---
-# ==============================================================================
-
-@app.route('/privacy-policy')
-def privacy_policy():
-    return render_template('privacy-policy.html')
-
-@app.route('/terms')
-def terms():
-    return render_template('terms.html')
-
-@app.route('/auth/google/callback')
-def google_callback():
-    token = request.args.get('id_token')
-    
-    if not token:
-        return "Google Sign-In Error: ID Token missing!", 400
-    
-    try:
-        id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-        email = id_info.get("email")
-        name = id_info.get("name") or (email.split("@")[0] if email else "User")
-
-        if not email:
-            return "Google did not provide an email", 400
-
-        conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-
-        if user:
-            session["user_id"] = user["id"]
-        else:
-            new_ref_code = f"USER{uuid.uuid4().hex[:5].upper()}"
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO users (name, email, phone, password, referral_code, confirmed_balance, pending_balance, referred_by, referral_bonus_given)
-                VALUES (?, ?, NULL, NULL, ?, 0.0, 0.0, NULL, 0)
-            ''', (name, email, new_ref_code))
-            
-            new_user_id = cursor.lastrowid
-            conn.commit()
-            session["user_id"] = new_user_id
-
-        conn.close()
-        
-        return redirect("/dashboard")
-
-    except Exception as e:
-        return f"Verification failed: {str(e)}", 400
-        
-if __name__ == "__main__":
-    app.run(debug=True)
+    return {
+        "pending_balance": float(user["pending_balance"]) if user else 0.0,
+        "confirmed_balance": float(user["confirmed_balance"]) if user else 0.0,
+        "orders": [dict(r) for r in rows],
+    }
