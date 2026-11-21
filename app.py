@@ -7,21 +7,30 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from models import init_db, get_db
 from vcommission import get_all_campaigns
+from affiliate_links import get_active_stores
+from commission_earning import (
+    ensure_earning_tables,
+    create_and_log_click,
+    build_tracked_url,
+    get_user_from_click,
+    record_commission_event,
+    get_user_earning_summary,
+)
 
 app = Flask(__name__)
 app.secret_key = "commission_cloud_secret_key_production"
 
 init_db()
+_init_conn = get_db()
+ensure_earning_tables(_init_conn)
+_init_conn.close()
 
 # Google Cloud OAuth Client ID
 GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleusercontent.com"
 
-# INRDeals Credentials & Configuration
-INRDEALS_API_KEY = "YOUR_INRDEALS_API_KEY_HERE"
-INRDEALS_SOURCE_ID = "YOUR_SOURCE_ID_HERE"
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 50.0  # Referral bonus in INR
-USER_CASHBACK_PERCENT = 0.40  # 40% User Share, 60% Admin Margin
+USER_CASHBACK_PERCENT = 0.50  # 50% User Share, 50% Admin Share
 
 # Context processor for global app settings
 @app.context_processor
@@ -204,7 +213,7 @@ def logout():
 
 
 # ==============================================================================
-# --- MAIN APPLICATION DASHBOARD (vCOMMISSION API INTEGRATED) ---
+# --- MAIN APPLICATION DASHBOARD (AFFILIATE LINKS + vCOMMISSION API) ---
 # ==============================================================================
 
 @app.route("/dashboard")
@@ -221,17 +230,32 @@ def dashboard():
         session.pop("user_id", None)
         return redirect("/login")
 
-    # vCommission API से लाइव ब्रांड्स फेच करें (हार्ड-कोडेड डेटाबेस स्टोर्स की जगह)
     stores = []
+
+    # 1. affiliate_links.py से एक्टिव स्टोर्स/लिंक्स जोड़ें (जैसे Myntra https://myntr.it/LlapLAs)
+    for item in get_active_stores():
+        encoded_url = urllib.parse.quote(item["url"], safe="")
+        encoded_store = urllib.parse.quote(item["name"], safe="")
+        stores.append({
+            "name": item["name"],
+            "badge": item.get("badge", "Active Link"),
+            "cashback_rate": "50% Commission Share",
+            "link": f"/redirect?store={encoded_store}&url={encoded_url}",
+            "logo": ""
+        })
+
+    # 2. vCommission API से लाइव ब्रांड्स फेच करें
     try:
         vc_campaigns = get_all_campaigns()
         if vc_campaigns:
             for camp in vc_campaigns:
+                encoded_url = urllib.parse.quote(camp["link"], safe="")
+                encoded_store = urllib.parse.quote(camp["name"], safe="")
                 stores.append({
                     "name": camp["name"],
                     "badge": "Live API",
-                    "cashback_rate": "Best Cashback",
-                    "link": f"/redirect?url={urllib.parse.quote(camp['link'])}",
+                    "cashback_rate": "50% Commission Share",
+                    "link": f"/redirect?store={encoded_store}&url={encoded_url}",
                     "logo": camp["logo"]
                 })
     except Exception as e:
@@ -248,10 +272,19 @@ def signup():
 def redirect_link():
     if "user_id" not in session:
         return redirect("/login")
-    target_url = request.args.get("url")
-    if target_url:
-        return redirect(target_url)
-    return "Invalid Link", 400
+
+    target_url = (request.args.get("url") or "").strip()
+    store_name = (request.args.get("store") or "Store").strip()
+
+    if not target_url.startswith(("http://", "https://")):
+        return "Invalid Link", 400
+
+    conn = get_db()
+    sub_id = create_and_log_click(conn, session["user_id"], store_name, target_url)
+    conn.close()
+
+    final_url = build_tracked_url(target_url, sub_id)
+    return redirect(final_url)
 
 @app.route("/earnings")
 def earnings():
@@ -260,9 +293,19 @@ def earnings():
 
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-    clicks = conn.execute("SELECT * FROM click_logs WHERE user_id = ? ORDER BY clicked_at DESC LIMIT 10", (session["user_id"],)).fetchall()
+    clicks = conn.execute(
+        "SELECT * FROM click_logs WHERE user_id = ? ORDER BY clicked_at DESC LIMIT 10",
+        (session["user_id"],),
+    ).fetchall()
+    summary = get_user_earning_summary(conn, session["user_id"])
     conn.close()
-    return render_template("earnings.html", user=user, clicks=clicks)
+
+    return render_template(
+        "earnings.html",
+        user=user,
+        clicks=clicks,
+        earning_summary=summary,
+    )
 
 @app.route("/withdraw", methods=["GET", "POST"])
 def withdraw():
@@ -300,7 +343,7 @@ def withdraw():
             return redirect("/withdraw")
 
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET confirmed_balance = confirmed_balance - ? WHERE id = ?", (amount, user_id))
+        cursor.execute("UPDATE users SET confirmed_balance = ROUND(confirmed_balance - ?, 2) WHERE id = ?", (amount, user_id))
         cursor.execute('''
             INSERT INTO payout_requests (user_id, amount, payout_method, payment_details, status)
             VALUES (?, ?, ?, ?, 'PENDING')
@@ -390,73 +433,81 @@ def profile():
     return render_template("profile.html", user=user)
 
 # ==============================================================================
-# --- AUTOMATIC POSTBACK / WEBHOOK (60/40 Revenue Split Logic) ---
+# --- AUTOMATIC POSTBACK / WEBHOOK (50/50 Split via commission_earning.py) ---
 # ==============================================================================
 @app.route("/api/postback", methods=["GET", "POST"])
 def affiliate_postback():
     data = request.args if request.method == "GET" else request.form
-    
-    sub_id = data.get("subid") or data.get("sub_id")
-    order_id = data.get("order_id") or data.get("orderid") or "NA"
-    status = str(data.get("status", "pending")).strip().lower()
-    
+
+    sub_id = (data.get("subid") or data.get("sub_id") or "").strip()
+    order_id = (data.get("order_id") or data.get("orderid") or "").strip()
+    status = str(data.get("status", "pending")).strip()
+
     try:
         total_payout = float(data.get("payout") or data.get("commission") or 0.0)
     except ValueError:
         total_payout = 0.0
 
-    if not sub_id or total_payout <= 0:
-        return jsonify({"status": "ignored", "message": "Missing subid or zero commission"}), 200
+    if not order_id:
+        return jsonify({"status": "ignored", "message": "Missing order_id"}), 200
 
     conn = get_db()
+    click = get_user_from_click(conn, sub_id) if sub_id else None
 
-    click = conn.execute("SELECT user_id, store_name FROM click_logs WHERE sub_id = ?", (sub_id,)).fetchone()
-    if not click:
+    if click:
+        user_id = click["user_id"]
+        store_name = click["store_name"]
+    else:
+        existing_order = conn.execute(
+            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE order_id = ?",
+            (order_id,),
+        ).fetchone()
+        if not existing_order:
+            conn.close()
+            return jsonify({"status": "error", "message": "Click Sub-ID or Order not found"}), 404
+        user_id = existing_order["user_id"]
+        store_name = existing_order["store_name"]
+        if total_payout <= 0:
+            total_payout = float(existing_order["total_commission"])
+
+    result = record_commission_event(
+        conn=conn,
+        order_id=order_id,
+        user_id=user_id,
+        total_commission=total_payout,
+        event_status=status,
+        store_name=store_name,
+        sub_id=sub_id,
+    )
+
+    if not result.get("ok"):
         conn.close()
-        return jsonify({"status": "error", "message": "Click Sub-ID not found"}), 404
+        return jsonify({"status": "error", "message": result.get("error", "Failed")}), 400
 
-    user_id = click["user_id"]
-    user_share = round(total_payout * USER_CASHBACK_PERCENT, 2)
-    admin_profit = round(total_payout - user_share, 2)
-
-    duplicate_claim = conn.execute("SELECT id, status FROM missing_claims WHERE order_id = ?", (order_id,)).fetchone()
-    if duplicate_claim and str(duplicate_claim["status"]).upper() in ["APPROVED", "CONFIRMED"]:
-        conn.close()
-        return jsonify({"status": "ignored", "message": "Order already processed manually"}), 200
-
-    if status in ["pending", "tracked"]:
-        conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_share, user_id))
-        conn.commit()
-
-    elif status in ["cancelled", "declined", "rejected"]:
-        conn.execute("UPDATE users SET pending_balance = MAX(0.0, pending_balance - ?) WHERE id = ?", (user_share, user_id))
+    if result.get("status") == "CANCELLED":
         conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
-        conn.commit()
 
-    elif status in ["confirmed", "approved"]:
-        conn.execute('''
-            UPDATE users 
-            SET pending_balance = MAX(0.0, pending_balance - ?),
-                confirmed_balance = confirmed_balance + ? 
-            WHERE id = ?
-        ''', (user_share, user_share, user_id))
-
+    if result.get("status") == "CONFIRMED":
         friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
             referrer_id = friend["referred_by"]
-            conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
-                         (REFERRAL_BONUS_AMOUNT, referrer_id))
+            conn.execute(
+                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
+                (REFERRAL_BONUS_AMOUNT, referrer_id),
+            )
             conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
 
-        conn.commit()
-
+    conn.commit()
     conn.close()
+
     return jsonify({
         "status": "success",
+        "order_id": order_id,
         "user_id": user_id,
-        "total_commission": total_payout,
-        "user_share_40": user_share,
-        "admin_profit_60": admin_profit
+        "store_name": store_name,
+        "order_status": result.get("status"),
+        "user_share_50": result.get("user_share"),
+        "admin_profit_50": result.get("admin_share"),
     }), 200
 
 # ==============================================================================
@@ -499,6 +550,63 @@ def admin_pay_confirm(req_id):
     flash("Payout confirmed and marked as PAID successfully!", "success")
     return redirect("/admin/payouts")
 
+@app.route("/admin/order-status", methods=["POST"])
+def admin_order_status():
+    order_id = (request.form.get("order_id") or "").strip()
+    user_id = request.form.get("user_id", type=int)
+    new_status = (request.form.get("status") or "").strip()
+    store_name = (request.form.get("store_name") or "").strip()
+
+    try:
+        total_commission = float(request.form.get("total_commission") or 0.0)
+    except ValueError:
+        total_commission = 0.0
+
+    conn = get_db()
+    if not user_id and order_id:
+        row = conn.execute(
+            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE order_id = ?",
+            (order_id,),
+        ).fetchone()
+        if row:
+            user_id = row["user_id"]
+            if not store_name:
+                store_name = row["store_name"]
+            if total_commission <= 0:
+                total_commission = float(row["total_commission"])
+
+    result = record_commission_event(
+        conn=conn,
+        order_id=order_id,
+        user_id=user_id,
+        total_commission=total_commission,
+        event_status=new_status,
+        store_name=store_name,
+    )
+
+    if not result.get("ok"):
+        conn.close()
+        flash(result.get("error", "Status update failed."), "error")
+        return redirect("/admin/payouts")
+
+    if result.get("status") == "CANCELLED":
+        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
+
+    if result.get("status") == "CONFIRMED":
+        friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
+            referrer_id = friend["referred_by"]
+            conn.execute(
+                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
+                (REFERRAL_BONUS_AMOUNT, referrer_id),
+            )
+            conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
+
+    conn.commit()
+    conn.close()
+    flash(f"Order {order_id} updated to {result.get('status')}.", "success")
+    return redirect("/admin/payouts")
+
 @app.route("/admin/approve-claim/<int:claim_id>", methods=["POST"])
 def admin_approve_claim(claim_id):
     try:
@@ -523,7 +631,7 @@ def admin_approve_claim(claim_id):
             return redirect("/admin/payouts")
 
         user_id = claim["user_id"]
-        conn.execute("UPDATE users SET pending_balance = pending_balance + ? WHERE id = ?", (user_cashback, user_id))
+        conn.execute("UPDATE users SET pending_balance = ROUND(pending_balance + ?, 2) WHERE id = ?", (user_cashback, user_id))
         conn.execute("UPDATE missing_claims SET status = 'APPROVED' WHERE id = ?", (claim_id,))
         conn.commit()
         flash(f"Claim #{claim_id} Tracked! ₹{user_cashback} added to User PENDING balance.", "success")
@@ -545,16 +653,21 @@ def admin_confirm_claim(claim_id):
 
     if claim and str(claim["status"]).strip().upper() == "APPROVED":
         user_id = claim["user_id"]
+        user_share = round(cashback_amount * USER_CASHBACK_PERCENT, 2) if cashback_amount > 0 else 0.0
 
-        conn.execute("UPDATE users SET pending_balance = MAX(0.0, pending_balance - ?), confirmed_balance = confirmed_balance + ? WHERE id = ?",
-                     (cashback_amount, cashback_amount, user_id))
+        conn.execute(
+            "UPDATE users SET pending_balance = MAX(0.0, ROUND(pending_balance - ?, 2)), confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
+            (user_share, user_share, user_id),
+        )
         conn.execute("UPDATE missing_claims SET status = 'CONFIRMED' WHERE id = ?", (claim_id,))
 
         friend = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if friend and friend["confirmed_balance"] >= 50.0 and friend["referral_bonus_given"] == 0 and friend["referred_by"]:
             referrer_id = friend["referred_by"]
-            conn.execute("UPDATE users SET confirmed_balance = confirmed_balance + ? WHERE id = ?", 
-                         (REFERRAL_BONUS_AMOUNT, referrer_id))
+            conn.execute(
+                "UPDATE users SET confirmed_balance = ROUND(confirmed_balance + ?, 2) WHERE id = ?",
+                (REFERRAL_BONUS_AMOUNT, referrer_id),
+            )
             conn.execute("UPDATE users SET referral_bonus_given = 1 WHERE id = ?", (user_id,))
 
         conn.commit()
