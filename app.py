@@ -7,7 +7,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from models import init_db, get_db
 from vcommission import get_all_campaigns
-from affiliate_links import get_active_stores
+from affiliate_links import AFFILIATE_STORES, get_active_stores
 from commission_earning import (
     ensure_earning_tables,
     create_and_log_click,
@@ -32,6 +32,31 @@ GOOGLE_CLIENT_ID = "425959144248-1774ja2dr8ddje1sqe17tg412c93qoom.apps.googleuse
 MINIMUM_WITHDRAWAL = 200.0  # Minimum withdrawal limit in INR
 REFERRAL_BONUS_AMOUNT = 25.0  # First-time referral bonus in INR (deducted from admin's share)
 USER_CASHBACK_PERCENT = 0.50  # 50% User Share, 50% Admin Share
+
+
+def get_all_claimable_stores():
+    """Return all configured affiliate stores + live vCommission stores without duplicates."""
+    seen = set()
+    store_list = []
+
+    for item in AFFILIATE_STORES:
+        name = str(item.get("name") or "").strip()
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            store_list.append({"name": name})
+
+    try:
+        vc_campaigns = get_all_campaigns() or []
+        for camp in vc_campaigns:
+            name = str(camp.get("name") or "").strip()
+            if name and name.lower() not in seen:
+                seen.add(name.lower())
+                store_list.append({"name": name})
+    except Exception as e:
+        print(f"vCommission API Fetch Error in store list: {e}")
+
+    return store_list
+
 
 # Context processor for global app settings
 @app.context_processor
@@ -412,26 +437,42 @@ def missing():
 
     conn = get_db()
     if request.method == "POST":
-        store_name = request.form.get("store_name", "").strip()
-        order_id = request.form.get("order_id", "").strip()
+        store_name = (request.form.get("store_name") or "").strip()
+        order_id = (request.form.get("order_id") or "").strip().upper()
         try:
             amount = float(request.form.get("amount", 0.0))
         except ValueError:
             amount = 0.0
 
-        existing = conn.execute("SELECT id FROM missing_claims WHERE user_id = ? AND order_id = ?", 
-                                (session["user_id"], order_id)).fetchone()
-        if existing:
-            flash("You have already submitted a claim for this Order ID.", "error")
+        if not store_name:
+            flash("Please select a store from the list.", "error")
+        elif not order_id:
+            flash("Please enter a valid Order ID.", "error")
+        elif amount <= 0:
+            flash("Please enter a valid order amount greater than 0.", "error")
         else:
-            conn.execute("INSERT INTO missing_claims (user_id, store_name, order_id, order_amount, status) VALUES (?, ?, ?, ?, 'PENDING')",
-                         (session["user_id"], store_name, order_id, amount))
-            conn.commit()
-            flash("Missing cashback claim submitted successfully! Status is Under Review.", "success")
-    
-    claims = conn.execute("SELECT * FROM missing_claims WHERE user_id = ? ORDER BY submitted_at DESC", (session["user_id"],)).fetchall()
+            existing = conn.execute(
+                "SELECT id FROM missing_claims WHERE user_id = ? AND UPPER(order_id) = ?",
+                (session["user_id"], order_id),
+            ).fetchone()
+            if existing:
+                flash("You have already submitted a claim for this Order ID.", "error")
+            else:
+                conn.execute(
+                    "INSERT INTO missing_claims (user_id, store_name, order_id, order_amount, status) VALUES (?, ?, ?, ?, 'PENDING')",
+                    (session["user_id"], store_name, order_id, amount),
+                )
+                conn.commit()
+                flash("Missing cashback claim submitted successfully! Status is Under Review.", "success")
+
+    claims = conn.execute(
+        "SELECT * FROM missing_claims WHERE user_id = ? ORDER BY submitted_at DESC",
+        (session["user_id"],),
+    ).fetchall()
     conn.close()
-    return render_template("missing.html", claims=claims)
+
+    stores = get_all_claimable_stores()
+    return render_template("missing.html", claims=claims, stores=stores)
 
 @app.route("/profile")
 def profile():
@@ -451,7 +492,7 @@ def affiliate_postback():
     data = request.args if request.method == "GET" else request.form
 
     sub_id = (data.get("subid") or data.get("sub_id") or "").strip()
-    order_id = (data.get("order_id") or data.get("orderid") or "").strip()
+    order_id = (data.get("order_id") or data.get("orderid") or "").strip().upper()
     status = str(data.get("status", "pending")).strip()
 
     try:
@@ -470,7 +511,7 @@ def affiliate_postback():
         store_name = click["store_name"]
     else:
         existing_order = conn.execute(
-            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE order_id = ?",
+            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE UPPER(order_id) = ?",
             (order_id,),
         ).fetchone()
         if not existing_order:
@@ -496,7 +537,7 @@ def affiliate_postback():
         return jsonify({"status": "error", "message": result.get("error", "Failed")}), 400
 
     if result.get("status") == "CANCELLED":
-        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
+        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE UPPER(order_id) = ?", (order_id,))
 
     conn.commit()
     conn.close()
@@ -553,7 +594,7 @@ def admin_pay_confirm(req_id):
 
 @app.route("/admin/order-status", methods=["POST"])
 def admin_order_status():
-    order_id = (request.form.get("order_id") or "").strip()
+    order_id = (request.form.get("order_id") or "").strip().upper()
     user_id = request.form.get("user_id", type=int)
     new_status = (request.form.get("status") or "").strip()
     store_name = (request.form.get("store_name") or "").strip()
@@ -566,7 +607,7 @@ def admin_order_status():
     conn = get_db()
     if not user_id and order_id:
         row = conn.execute(
-            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE order_id = ?",
+            "SELECT user_id, store_name, total_commission FROM affiliate_commissions WHERE UPPER(order_id) = ?",
             (order_id,),
         ).fetchone()
         if row:
@@ -591,7 +632,7 @@ def admin_order_status():
         return redirect("/admin/payouts")
 
     if result.get("status") == "CANCELLED":
-        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE order_id = ?", (order_id,))
+        conn.execute("UPDATE missing_claims SET status = 'REJECTED' WHERE UPPER(order_id) = ?", (order_id,))
 
     conn.commit()
     conn.close()
