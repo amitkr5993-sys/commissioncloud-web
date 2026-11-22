@@ -70,7 +70,7 @@ AFFILIATE_STORES = [
         "domain": "flipkart.com",
         "source": "EarnKaro",
         "badge": "Logo Ready",
-        "url": "",
+        "url": "https://bitli.in/qxwxpy0",
     },
     {
         "id": "ajio",
@@ -78,7 +78,7 @@ AFFILIATE_STORES = [
         "domain": "ajio.com",
         "source": "Affiliate",
         "badge": "Active Link",
-        "url": "https://ajiio.in/1lPbqQl",
+        "url": "https://ajiio.in/S0LOTb3",
     },
     {
         "id": "jiomart",
