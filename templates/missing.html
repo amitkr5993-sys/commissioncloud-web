@@ -17,20 +17,24 @@
         <div style="margin-bottom:15px;">
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Select Store:</label>
             <select name="store_name" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; background:#fff;">
-                {% for s in stores %}
-                <option value="{{ s.name }}">{{ s.name }}</option>
+                <option value="" disabled selected>-- Select Store --</option>
+                {% for s in stores or [] %}
+                    {% set store_label = s.name if s is mapping else (s.name if s.name is defined else s) %}
+                    {% if store_label %}
+                        <option value="{{ store_label }}">{{ store_label }}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
         </div>
 
         <div style="margin-bottom:15px;">
-            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Order ID (Flipkart / Myntra):</label>
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Order ID (Flipkart / Myntra / Store):</label>
             <input type="text" name="order_id" placeholder="OD1234567890" required class="ref-input" style="width:100%; box-sizing:border-box;">
         </div>
 
         <div style="margin-bottom:15px;">
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:5px;">Total Order Amount (₹):</label>
-            <input type="number" step="0.01" name="amount" placeholder="e.g. 1499" required class="ref-input" style="width:100%; box-sizing:border-box;">
+            <input type="number" step="0.01" min="1" name="amount" placeholder="e.g. 1499" required class="ref-input" style="width:100%; box-sizing:border-box;">
         </div>
 
         <button type="submit" class="btn-action full-width" style="padding:12px; background:#002244;">Submit Claim</button>
