@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select {{ service_type }} Biller - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding-bottom: 70px; }
+
+        .fixed-header { position: sticky; top: 0; z-index: 1000; background: #f8fafc; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .top-bar { background: #7c3aed; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .back-btn { color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; }
+        .brand-container { display: flex; align-items: center; gap: 8px; }
+        .app-logo { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .page-title { font-size: 16px; font-weight: 700; color: #fff; }
+
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+        .search-box-container { margin-bottom: 16px; }
+        .search-input { width: 100%; padding: 12px 16px 12px 40px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff; }
+        .search-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; }
+
+        .biller-list { display: flex; flex-direction: column; gap: 10px; }
+        .biller-card { background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-decoration: none; color: #0f172a; transition: 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .biller-card:hover { border-color: #7c3aed; background: #f5f3ff; }
+        .biller-name { font-size: 15px; font-weight: 700; }
+        .arrow-icon { color: #7c3aed; font-weight: bold; font-size: 16px; }
+
+        .logo-holder {
+            min-width: 44px;
+            max-width: 82px;
+            height: 40px;
+            border-radius: 20px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            padding: 0 6px;
+        }
+        .biller-logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            background: #fff;
+        }
+        .red-first-name {
+            display: none;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #dc2626;
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-radius: 16px;
+            padding: 0 6px;
+        }
+        .empty-msg { display: none; text-align: center; color: #64748b; font-size: 14px; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="fixed-header">
+    <div class="top-bar">
+        <a href="/recharge" class="back-btn">← Back</a>
+        <div class="brand-container">
+            <div class="app-logo">⚡</div>
+            <div class="page-title">Select {{ service_type }}</div>
+        </div>
+        <div style="width: 24px;"></div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="search-box-container">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="billerSearchInput" class="search-input" placeholder="Search {{ service_type }} board or operator..." oninput="filterBillers(this.value)">
+        </div>
+    </div>
+
+    <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #475569; text-transform: uppercase;">All Available {{ service_type }} Options</div>
+
+    <div class="biller-list" id="billerContainer">
+        {% for biller in billers %}
+        {% set first_name = biller.split()[0] if biller.split() else biller %}
+        <a href="/recharge/service?type={{ service_type | urlencode }}&operator={{ biller | urlencode }}"
+           class="biller-card"
+           data-name="{{ biller | lower }}">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="logo-holder">
+                    <img src=""
+                         alt="{{ biller }}"
+                         data-full-name="{{ biller }}"
+                         onload="handleBillerLogoLoad(this)"
+                         onerror="showRedFirstName(this)"
+                         class="biller-logo">
+                    <span class="red-first-name">{{ first_name }}</span>
+                </div>
+                <div class="biller-name">{{ biller }}</div>
+            </div>
+            <div class="arrow-icon">➔</div>
+        </a>
+        {% endfor %}
+        <div id="noBillerMsg" class="empty-msg">कोई मैचिंग बिलर नहीं मिला।</div>
+    </div>
+</div>
+
+<script>
+    const KNOWN_BILLER_DOMAINS = {
+        "adani power": "adanielectricity.com",
+        "bses rajdhani": "bsesdelhi.com",
+        "bses yamuna": "bsesdelhi.com",
+        "cesc": "cesc.co.in",
+        "tata power": "tatapower.com",
+        "northdelhi": "tatapower.com",
+        "north bihar": "nbpdcl.co.in",
+        "south bihar": "sbpdcl.co.in",
+        "msedc": "mahadiscom.in",
+        "tneb": "tangedco.gov.in",
+        "kerala state electricity": "kseb.in",
+        "uppcl": "uppcl.org",
+        "uttar pradesh power": "uppcl.org",
+        "adani gas": "adani.com",
+        "gujarat gas": "gujaratgas.com",
+        "indraprastha gas": "iglonline.net",
+        "mahanagar gas": "mahanagargas.com",
+        "airtel": "airtel.in",
+        "dish tv": "dishtv.in",
+        "sundirect": "sundirect.in",
+        "tatasky": "tataplay.com",
+        "videocon": "d2h.com",
+        "axis bank": "axisbank.com",
+        "bank of baroda": "bankofbaroda.in",
+        "hdfc bank": "hdfcbank.com",
+        "icici bank": "icicibank.com",
+        "idfc first": "idfcfirstbank.com",
+        "indusind": "indusind.com",
+        "kotak": "kotak.com",
+        "paytm": "paytmbank.com",
+        "sbi bank": "sbi.co.in"
+    };
+
+    function getGoogleFaviconUrl(billerName) {
+        const lower = (billerName || "").toLowerCase();
+        for (const [key, domain] of Object.entries(KNOWN_BILLER_DOMAINS)) {
+            if (lower.includes(key)) {
+                return "https://www.google.com/s2/favicons?domain=" + domain + "&sz=128";
+            }
+        }
+        const alphaSlug = lower.replace(/[^a-z0-9]/g, '');
+        return alphaSlug ? ("https://www.google.com/s2/favicons?domain=" + alphaSlug + ".in&sz=128") : "";
+    }
+
+    function showRedFirstName(img) {
+        img.style.display = "none";
+        const badge = img.parentElement ? img.parentElement.querySelector(".red-first-name") : null;
+        if (badge) badge.style.display = "flex";
+    }
+
+    function handleBillerLogoLoad(img) {
+        if (img.naturalWidth <= 16) {
+            showRedFirstName(img);
+        } else {
+            img.style.display = "block";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".biller-logo").forEach(img => {
+            const url = getGoogleFaviconUrl(img.dataset.fullName || "");
+            if (url) {
+                img.src = url;
+            } else {
+                showRedFirstName(img);
+            }
+        });
+    });
+
+    function filterBillers(query) {
+        const searchText = query.toLowerCase().trim();
+        const cards = document.querySelectorAll('.biller-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const name = (card.getAttribute('data-name') || '').toLowerCase();
+            if (name.includes(searchText)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const emptyMsg = document.getElementById('noBillerMsg');
+        if (emptyMsg) {
+            emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+    }
+</script>
+
+</body>
+</html>

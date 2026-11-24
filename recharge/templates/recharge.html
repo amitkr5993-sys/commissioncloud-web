@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recharge & Bills - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding-bottom: 70px; }
+
+        .fixed-header { position: sticky; top: 0; z-index: 1000; background: #f8fafc; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .top-bar { background: #7c3aed; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .back-btn { color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; }
+        .history-btn { color: #ffffff; text-decoration: none; font-weight: 700; font-size: 12px; background: rgba(255,255,255,0.18); padding: 6px 10px; border-radius: 8px; }
+        .brand-container { display: flex; align-items: center; gap: 8px; }
+        .app-logo { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .page-title { font-size: 16px; font-weight: 700; color: #fff; }
+
+        .wallet-card { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #ffffff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .wallet-label { font-size: 10px; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .wallet-amt { font-size: 20px; font-weight: 800; color: #4ade80; margin-top: 2px; }
+        .wallet-icon-box { background: rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; color: #fff; border: 1px solid rgba(255,255,255,0.15); }
+
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+        .search-box-container { margin-bottom: 16px; }
+        .search-input { width: 100%; padding: 12px 16px 12px 40px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff; color: #0f172a; box-shadow: 0 2px 6px rgba(0,0,0,0.02); transition: 0.2s; }
+        .search-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; }
+
+        .services-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+        .more-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: -8px; margin-bottom: 16px; }
+        .service-item { background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 8px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .service-item.active { border-color: #7c3aed; background: #f5f3ff; transform: scale(1.02); }
+        .service-icon { font-size: 22px; margin-bottom: 4px; }
+        .service-name { font-size: 11px; font-weight: 700; color: #334155; }
+
+        .form-card { background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+        input, select { width: 100%; padding: 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 15px; outline: none; background: #f8fafc; color: #0f172a; transition: 0.2s; }
+        input:focus, select:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
+
+        .op-logo-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .op-logo-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; cursor: pointer; font-size: 12px; font-weight: 700; color: #0f172a; transition: 0.15s; }
+        .op-logo-chip:hover { border-color: #7c3aed; background: #faf5ff; }
+        .op-logo-chip.selected-op { border-color: #7c3aed; background: #f5f3ff; box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12); }
+        .op-logo-circle { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        .op-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+        .op-red-fallback { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #fee2e2; color: #dc2626; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+
+        .bsnl-type-box { display: none; gap: 8px; margin-bottom: 10px; }
+        .bsnl-type-btn { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #f8fafc; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer; }
+        .bsnl-type-btn.active-bsnl { border-color: #7c3aed; background: #f5f3ff; color: #7c3aed; }
+
+        .pay-btn { width: 100%; background: #7c3aed; color: #fff; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); transition: 0.2s; }
+        .pay-btn:hover { background: #6d28d9; }
+    </style>
+</head>
+<body>
+
+<div class="fixed-header">
+    <div class="top-bar">
+        <a href="/" class="back-btn">← Back</a>
+        <div class="brand-container">
+            <div class="app-logo">📱</div>
+            <div class="page-title">Recharge & Bills</div>
+        </div>
+        <a href="{{ url_for('recharge_bp.recharge_history') }}" class="history-btn">History</a>
+    </div>
+
+    <div class="wallet-card">
+        <div>
+            <div class="wallet-label">⚡ Cashback Balance</div>
+            <div class="wallet-amt">₹ {{ "%.2f"|format(wallet_balance) }}</div>
+        </div>
+        <div class="wallet-icon-box">🎁 Rewards Active</div>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="search-box-container">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchServiceInput" class="search-input" placeholder="Search DTH, electricity, gas, FASTag & press Enter..." onkeydown="handleSearchKey(event)">
+        </div>
+    </div>
+
+    <div class="services-grid" id="servicesGridContainer">
+        <div class="service-item active" data-name="mobile" onclick="selectService('Mobile Prepaid', this)">
+            <div class="service-icon">📱</div>
+            <div class="service-name">Mobile</div>
+        </div>
+        <div class="service-item" data-name="dth" onclick="selectService('DTH', this)">
+            <div class="service-icon">📺</div>
+            <div class="service-name">DTH</div>
+        </div>
+        <div class="service-item" data-name="electricity" onclick="selectService('Electricity', this)">
+            <div class="service-icon">⚡</div>
+            <div class="service-name">Electricity</div>
+        </div>
+        <div class="service-item" data-name="more" onclick="toggleMoreServices(this)">
+            <div class="service-icon">🌐</div>
+            <div class="service-name" id="moreLabel">More</div>
+        </div>
+    </div>
+
+    <div id="moreServicesContainer" class="more-grid" style="display: none;">
+        <div class="service-item" data-name="gas" onclick="selectService('Gas', this)">
+            <div class="service-icon">🔥</div>
+            <div class="service-name">Gas</div>
+        </div>
+        <div class="service-item" data-name="fastag" onclick="selectService('FASTag', this)">
+            <div class="service-icon">🚗</div>
+            <div class="service-name">FASTag</div>
+        </div>
+    </div>
+
+    <div class="form-card" id="mainFormCard">
+        <form id="rechargeForm" onsubmit="handleFormSubmit(event)">
+            <input type="hidden" name="service_type" id="serviceTypeInput" value="{{ selected_service or 'Mobile Prepaid' }}">
+
+            <div class="form-group">
+                <label id="numberLabel">Mobile Number</label>
+                <input type="text" inputmode="numeric" name="number" id="numberInput" placeholder="Enter 10-digit mobile number" maxlength="10" oninput="onNumberInput(this.value)" required>
+            </div>
+
+            <div class="form-group" id="operatorGroup">
+                <label id="operatorLabel">Select Operator</label>
+
+                <div class="op-logo-strip" id="googleOperatorStrip">
+                    <button type="button" class="op-logo-chip" data-op="Jio" onclick="selectOperatorFromStrip('Jio')">
+                        <span class="op-logo-circle">
+                            <img src="https://www.google.com/s2/favicons?domain=jio.com&sz=128" alt="Jio" onerror="handleOpLogoError(this)">
+                            <span class="op-red-fallback">Jio</span>
+                        </span>
+                        <span>Jio</span>
+                    </button>
+
+                    <button type="button" class="op-logo-chip" data-op="Airtel" onclick="selectOperatorFromStrip('Airtel')">
+                        <span class="op-logo-circle">
+                            <img src="https://www.google.com/s2/favicons?domain=airtel.in&sz=128" alt="Airtel" onerror="handleOpLogoError(this)">
+                            <span class="op-red-fallback">Airtel</span>
+                        </span>
+                        <span>Airtel</span>
+                    </button>
+
+                    <button type="button" class="op-logo-chip" data-op="Vi" onclick="selectOperatorFromStrip('Vi')">
+                        <span class="op-logo-circle">
+                            <img src="https://www.google.com/s2/favicons?domain=myvi.in&sz=128" alt="Vi" onerror="handleOpLogoError(this)">
+                            <span class="op-red-fallback">Vi</span>
+                        </span>
+                        <span>Vi</span>
+                    </button>
+
+                    <button type="button" class="op-logo-chip" data-op="BSNL" onclick="selectOperatorFromStrip('BSNL')">
+                        <span class="op-logo-circle">
+                            <img src="https://www.google.com/s2/favicons?domain=bsnl.co.in&sz=128" alt="BSNL" onerror="handleOpLogoError(this)">
+                            <span class="op-red-fallback">BSNL</span>
+                        </span>
+                        <span>BSNL</span>
+                    </button>
+                </div>
+
+                <div class="bsnl-type-box" id="bsnlTypeBox">
+                    <button type="button" class="bsnl-type-btn active-bsnl" id="btnBsnlCombo" onclick="chooseBsnlType('BSNL Combo', this)">BSNL Combo (BR)</button>
+                    <button type="button" class="bsnl-type-btn" id="btnBsnlTopup" onclick="chooseBsnlType('BSNL Topup', this)">BSNL Topup (BT)</button>
+                </div>
+
+                <select name="operator" id="operatorSelect" required>
+                    <option value="">-- Select Operator --</option>
+                    <option value="Jio">Jio</option>
+                    <option value="Airtel">Airtel</option>
+                    <option value="Vi">Vi</option>
+                    <option value="BSNL Combo">BSNL Combo (BR)</option>
+                    <option value="BSNL Topup">BSNL Topup (BT)</option>
+                </select>
+            </div>
+
+            <button type="submit" class="pay-btn" id="submitBtn">Proceed to Plans & Pay</button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    let isOperatorLocked = false;
+
+    function handleOpLogoError(img) {
+        img.style.display = 'none';
+        const fallback = img.nextElementSibling;
+        if (fallback) fallback.style.display = 'flex';
+    }
+
+    function toggleBsnlBox(opValue) {
+        const box = document.getElementById('bsnlTypeBox');
+        if (!box) return;
+        const lower = (opValue || '').toLowerCase();
+        if (lower.includes('bsnl')) {
+            box.style.display = 'flex';
+            const btnC = document.getElementById('btnBsnlCombo');
+            const btnT = document.getElementById('btnBsnlTopup');
+            btnC.classList.toggle('active-bsnl', !lower.includes('topup'));
+            btnT.classList.toggle('active-bsnl', lower.includes('topup'));
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    function chooseBsnlType(bsnlOp, btn) {
+        document.querySelectorAll('.bsnl-type-btn').forEach(b => b.classList.remove('active-bsnl'));
+        if (btn) btn.classList.add('active-bsnl');
+        const selectBox = document.getElementById('operatorSelect');
+        selectBox.value = bsnlOp;
+        isOperatorLocked = true;
+        highlightOperatorChip('BSNL');
+    }
+
+    function highlightOperatorChip(opValue) {
+        const lower = (opValue || '').toLowerCase();
+        const target = lower.includes('bsnl') ? 'bsnl' : lower;
+        document.querySelectorAll('.op-logo-chip').forEach(chip => {
+            const chipOp = (chip.getAttribute('data-op') || '').toLowerCase();
+            chip.classList.toggle('selected-op', Boolean(target && chipOp === target));
+        });
+        toggleBsnlBox(opValue);
+    }
+
+    function setOperatorValue(opName, lockSelection = true) {
+        const selectBox = document.getElementById('operatorSelect');
+        if (!selectBox) return;
+        const targetOp = opName.toLowerCase() === 'bsnl' ? 'BSNL Combo' : opName;
+        const matchedOpt = Array.from(selectBox.options).find(
+            opt => opt.value.toLowerCase() === targetOp.toLowerCase() || opt.text.toLowerCase() === targetOp.toLowerCase()
+        );
+        selectBox.value = matchedOpt ? matchedOpt.value : targetOp;
+        if (lockSelection && selectBox.value !== "") isOperatorLocked = true;
+        highlightOperatorChip(selectBox.value);
+    }
+
+    function selectOperatorFromStrip(opName) {
+        setOperatorValue(opName, true);
+    }
+
+    document.getElementById('operatorSelect').addEventListener('change', function() {
+        if (this.value !== "") isOperatorLocked = true;
+        highlightOperatorChip(this.value);
+    });
+
+    function selectService(serviceName, element) {
+        if (serviceName.includes('Mobile')) {
+            document.getElementById('serviceTypeInput').value = serviceName;
+            document.querySelectorAll('.service-item').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+        } else {
+            window.location.href = `/recharge/billers?type=${encodeURIComponent(serviceName)}`;
+        }
+    }
+
+    function toggleMoreServices(element) {
+        const moreBox = document.getElementById('moreServicesContainer');
+        if (moreBox.style.display === 'none') {
+            moreBox.style.display = 'grid';
+            element.classList.add('active');
+        } else {
+            moreBox.style.display = 'none';
+            element.classList.remove('active');
+        }
+    }
+
+    function handleSearchKey(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            filterServices(event.target.value);
+        }
+    }
+
+    function filterServices(query) {
+        query = (query || '').toLowerCase().trim();
+        if (!query) return;
+        if (query.includes('dth') || query.includes('tv')) {
+            window.location.href = `/recharge/billers?type=DTH`;
+        } else if (query.includes('electricity') || query.includes('bijli') || query.includes('bill')) {
+            window.location.href = `/recharge/billers?type=Electricity`;
+        } else if (query.includes('gas')) {
+            window.location.href = `/recharge/billers?type=Gas`;
+        } else if (query.includes('fastag') || query.includes('tag')) {
+            window.location.href = `/recharge/billers?type=FASTag`;
+        }
+    }
+
+    function onNumberInput(val) {
+        const inputEl = document.getElementById('numberInput');
+        const cleaned = (val || '').replace(/\D/g, '').slice(0, 10);
+        if (inputEl && inputEl.value !== cleaned) inputEl.value = cleaned;
+        if (!isOperatorLocked && cleaned.length >= 2) autoDetectOperator(cleaned);
+    }
+
+    function autoDetectOperator(number) {
+        const firstTwo = number.substring(0, 2);
+        const selectBox = document.getElementById('operatorSelect');
+        let detectedOp = "";
+
+        if (['94', '93'].includes(firstTwo)) detectedOp = "BSNL Combo";
+        else if (['62', '70', '72', '75', '81', '82', '83', '84', '87', '88', '89'].includes(firstTwo)) detectedOp = "Jio";
+        else if (['98', '99', '97', '96', '95', '91', '90', '76', '77', '78', '79'].includes(firstTwo)) detectedOp = "Airtel";
+        else if (['86', '85', '73', '74'].includes(firstTwo)) detectedOp = "Vi";
+
+        if (detectedOp && !isOperatorLocked) {
+            selectBox.value = detectedOp;
+            highlightOperatorChip(detectedOp);
+        }
+    }
+
+    function handleFormSubmit(event) {
+        event.preventDefault();
+        const number = document.getElementById('numberInput').value.trim();
+        const operator = document.getElementById('operatorSelect').value.trim();
+
+        if (!/^[6-9][0-9]{9}$/.test(number)) {
+            alert("कृपया 6–9 से शुरू होने वाला सही 10 अंकों का मोबाइल नंबर दर्ज करें।");
+            document.getElementById('numberInput').focus();
+            return;
+        }
+        if (!operator) {
+            alert("कृपया ऑपरेटर चुनें।");
+            document.getElementById('operatorSelect').focus();
+            return;
+        }
+        goToPlanPage(number, operator);
+    }
+
+    function goToPlanPage(number, operator) {
+        window.location.href = `/recharge/plans?number=${encodeURIComponent(number)}&operator=${encodeURIComponent(operator)}`;
+    }
+</script>
+
+</body>
+</html>

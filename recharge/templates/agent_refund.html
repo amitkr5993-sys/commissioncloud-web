@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Refund Panel - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding: 20px; }
+
+        .container { max-width: 1080px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
+        .title { font-size: 16px; font-weight: 700; color: #1e293b; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-btn { color: #7c3aed; text-decoration: none; font-weight: 700; font-size: 12px; background: #f5f3ff; padding: 6px 12px; border-radius: 8px; border: 1px solid #ddd6fe; }
+
+        .helper-note { font-size: 12px; color: #64748b; margin-bottom: 12px; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
+
+        .filter-row { margin-bottom: 12px; }
+        .filter-input { width: 100%; max-width: 380px; padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #f8fafc; }
+        .filter-input:focus { border-color: #7c3aed; background: #fff; }
+
+        .refund-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .refund-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+        .refund-table th, .refund-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; vertical-align: middle; }
+        .refund-table th { background: #f8fafc; font-weight: 700; color: #334155; }
+
+        .action-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .utr-mini-input { width: 115px; padding: 5px 7px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; }
+        .approve-btn { background: #2563eb; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .approve-btn:hover { background: #1d4ed8; }
+        .refund-btn { background: #16a34a; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .refund-btn:hover { background: #15803d; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="title">💼 Agent Panel — Stuck / Review / Pending / Failed Orders</div>
+        <div class="nav-links">
+            <a href="/admin/plans" class="nav-btn">Plans Admin</a>
+            <a href="/recharge" class="nav-btn">← Recharge</a>
+        </div>
+    </div>
+
+    <div class="helper-note">
+        Jis order ka payment/message match ho chuka hai ya review mein ruka hai, use <strong>Approve &amp; Recharge</strong> se chalayein; aur jahan recharge pending/fail hua ya refund dena ho, wahan <strong>Cashback/Wallet</strong> mein refund karein.
+    </div>
+
+    <div class="filter-row">
+        <input type="text" id="orderFilterInput" class="filter-input" placeholder="Search Order ID, User ID, Number, UTR or Status..." oninput="filterRefundRows(this.value)">
+    </div>
+
+    <div class="refund-table-wrap">
+        <table class="refund-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>User ID</th>
+                    <th>Operator &amp; Number</th>
+                    <th>Payable / Cut</th>
+                    <th>UTR / Txn</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="refundTableBody">
+                {% for o in stuck_orders or [] %}
+                {% set pay_amt = (o['payable_amount'] if o['payable_amount'] is not none else o['recharge_amount']) or 0 %}
+                <tr class="refund-row" data-search="{{ (o['local_order_id'] ~ ' ' ~ o['user_id'] ~ ' ' ~ o['operator'] ~ ' ' ~ o['number'] ~ ' ' ~ (o['utr'] or '') ~ ' ' ~ o['status']) | lower }}">
+                    <td>{{ o['local_order_id'] }}</td>
+                    <td>{{ o['user_id'] }}</td>
+                    <td>{{ o['operator'] }} • {{ o['number'] }}</td>
+                    <td>₹{{ "%.2f"|format(pay_amt) }}</td>
+                    <td>{{ o['utr'] or '-' }}</td>
+                    <td>{{ o['status'] }}</td>
+                    <td>
+                        <div class="action-group">
+                            {% if o['status'] in ['NEEDS_REVIEW', 'PENDING_PAYMENT'] %}
+                            <form action="/admin/approve-recharge" method="POST" style="margin:0; display:inline-flex; gap:4px; align-items:center;" onsubmit="return handleAgentSubmit(this, 'Approve & Recharge')">
+                                <input type="hidden" name="order_id" value="{{ o['local_order_id'] }}">
+                                <input type="text" name="utr" value="{{ o['utr'] or '' }}" placeholder="UTR (optional)" class="utr-mini-input">
+                                <button type="submit" class="approve-btn">Approve &amp; Recharge</button>
+                            </form>
+                            {% endif %}
+
+                            {% if o['status'] in ['RECHARGE_FAILED', 'RECHARGE_PENDING', 'NEEDS_REVIEW'] %}
+                            <form action="/admin/refund-wallet" method="POST" style="margin:0; display:inline;" onsubmit="return handleAgentSubmit(this, 'Add Cashback')">
+                                <input type="hidden" name="order_id" value="{{ o['local_order_id'] }}">
+                                <input type="hidden" name="user_id" value="{{ o['user_id'] }}">
+                                <input type="hidden" name="amount" value="{{ pay_amt }}">
+                                <button type="submit" class="refund-btn">Add ₹{{ "%.2f"|format(pay_amt) }} to Cashback</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Koi ruka hua ya fail order nahi hai.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function filterRefundRows(query) {
+        const q = (query || '').toLowerCase().trim();
+        document.querySelectorAll('.refund-row').forEach(row => {
+            const hay = row.getAttribute('data-search') || '';
+            row.style.display = (!q || hay.includes(q)) ? '' : 'none';
+        });
+    }
+
+    function handleAgentSubmit(form, labelText) {
+        if (!confirm(`${labelText} confirm karna chahte hain?`)) {
+            return false;
+        }
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+        }
+        return true;
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pay {{ service_type }} Bill - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding-bottom: 70px; }
+
+        .fixed-header { position: sticky; top: 0; z-index: 1000; background: #f8fafc; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .top-bar { background: #7c3aed; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .back-btn { color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; }
+        .brand-container { display: flex; align-items: center; gap: 8px; }
+        .app-logo { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .page-title { font-size: 16px; font-weight: 700; color: #fff; }
+
+        .wallet-card { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #ffffff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .wallet-label { font-size: 10px; color: #cbd5e1; font-weight: 600; text-transform: uppercase; }
+        .wallet-amt { font-size: 20px; font-weight: 800; color: #4ade80; margin-top: 2px; }
+
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+        .selected-biller-box { background: #f5f3ff; border: 1.5px solid #7c3aed; border-radius: 14px; padding: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .selected-name { font-size: 15px; font-weight: 800; color: #7c3aed; }
+        .change-link { font-size: 12px; font-weight: 700; color: #64748b; text-decoration: none; background: #fff; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+
+        .form-card { background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px; text-transform: uppercase; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 15px; outline: none; background: #f8fafc; color: #0f172a; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #7c3aed; background: #fff; }
+
+        .wallet-check-box { display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 16px; font-size: 13px; font-weight: 600; color: #1e293b; }
+        .wallet-check-box input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7c3aed; cursor: pointer; }
+
+        .pay-btn { width: 100%; background: #7c3aed; color: #fff; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+        .pay-btn:hover { background: #6d28d9; }
+        .pay-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="fixed-header">
+    <div class="top-bar">
+        <a href="/recharge/billers?type={{ service_type }}" class="back-btn">← Back</a>
+        <div class="brand-container">
+            <div class="app-logo">⚡</div>
+            <div class="page-title">Pay {{ service_type }} Bill</div>
+        </div>
+        <div style="width: 24px;"></div>
+    </div>
+
+    <div class="wallet-card">
+        <div>
+            <div class="wallet-label">⚡ Wallet Balance</div>
+            <div class="wallet-amt">₹ {{ "%.2f"|format(wallet_balance) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="selected-biller-box">
+        <div>
+            <div style="font-size: 11px; color: #64748b; font-weight: 600;">SELECTED BILLER</div>
+            <div class="selected-name">{{ operator }}</div>
+        </div>
+        <a href="/recharge/billers?type={{ service_type }}" class="change-link">Change</a>
+    </div>
+
+    <div class="form-card">
+        <form id="serviceForm" action="/recharge/initiate" method="POST" onsubmit="return validateServiceForm(this)">
+            <input type="hidden" name="service_type" value="{{ service_type }}">
+            <input type="hidden" name="operator" id="serviceOperatorInput" value="{{ operator }}">
+
+            {% set svc = (service_type or '') | lower %}
+            <div class="form-group">
+                {% if svc == 'dth' %}
+                    <label>DTH Subscriber / VC Number</label>
+                    <input type="text" id="serviceNumberInput" name="number" placeholder="Enter Subscriber ID or VC number" required>
+                {% elif svc == 'fastag' %}
+                    <label>Vehicle Number / FASTag ID</label>
+                    <input type="text" id="serviceNumberInput" name="number" placeholder="Enter vehicle number or FASTag ID" required>
+                {% else %}
+                    <label>{{ service_type }} Consumer ID / Account No</label>
+                    <input type="text" id="serviceNumberInput" name="number" placeholder="Enter consumer ID or account number" required>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Bill Amount (₹)</label>
+                <input type="number" id="serviceAmountInput" name="amount" placeholder="Enter amount" min="1" max="500000" step="0.01" required>
+            </div>
+
+            {% if wallet_balance > 0 %}
+            <label class="wallet-check-box">
+                <input type="checkbox" name="use_wallet" checked>
+                <span>Use Wallet Balance (₹ {{ "%.2f"|format(wallet_balance) }})</span>
+            </label>
+            {% endif %}
+
+            <button type="submit" class="pay-btn" id="servicePayBtn">Proceed to Pay Bill</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function validateServiceForm(form) {
+        const opInput = document.getElementById('serviceOperatorInput');
+        const numInput = document.getElementById('serviceNumberInput');
+        const amtInput = document.getElementById('serviceAmountInput');
+
+        const opVal = (opInput ? opInput.value : '').trim();
+        const numVal = (numInput ? numInput.value : '').trim();
+        const amtVal = parseFloat(amtInput ? amtInput.value : '0');
+
+        if (!opVal) {
+            alert("कृपया पहले ऑपरेटर/बिलर चुनें।");
+            return false;
+        }
+        if (numInput) numInput.value = numVal;
+        if (!numVal || numVal.length < 3) {
+            alert("कृपया सही कंज्यूमर/अकाउंट/नंबर दर्ज करें।");
+            if (numInput) numInput.focus();
+            return false;
+        }
+        if (isNaN(amtVal) || amtVal <= 0) {
+            alert("कृपया 0 से बड़ी सही बिल राशि दर्ज करें।");
+            if (amtInput) amtInput.focus();
+            return false;
+        }
+
+        const btn = document.getElementById('servicePayBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+        }
+        return true;
+    }
+</script>
+
+</body>
+</html>

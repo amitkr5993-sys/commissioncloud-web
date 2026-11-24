@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recharge History - Commission Cloud</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { background: #f4f6fb; margin: 0; color: #1e293b; }
+    .topbar { background: #7c3aed; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .topbar a { color: #fff; text-decoration: none; font-weight: bold; background: rgba(255,255,255,0.16); padding: 6px 12px; border-radius: 6px; font-size: 13px; }
+    .container { max-width: 1040px; margin: 24px auto; padding: 0 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow-x: auto; border: 1px solid #e2e8f0; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    h2 { margin: 0; font-size: 18px; color: #0f172a; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .search-box, .status-select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+    th { background: #f8fafc; font-weight: 600; color: #334155; }
+    .badge { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: bold; display: inline-block; }
+    .ok { background: #dcfce7; color: #166534; }
+    .pend { background: #fef9c3; color: #854d0e; }
+    .review { background: #e0e7ff; color: #3730a3; }
+    .fail { background: #fee2e2; color: #991b1b; }
+    .check-btn { background: #7c3aed; color: #fff; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+    .check-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div><strong>Recharge History</strong> • Wallet: ₹{{ "%.2f"|format(wallet_balance or 0) }}</div>
+    <a href="{{ url_for('recharge_bp.recharge_home') }}">&larr; Back to Recharge</a>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="header-bar">
+        <h2>All Recharge Transactions</h2>
+        <div class="controls">
+          <input type="text" id="historySearch" class="search-box" placeholder="Search number, order ID, UTR..." oninput="filterHistory()">
+          <select id="statusFilter" class="status-select" onchange="filterHistory()">
+            <option value="">All Status</option>
+            <option value="SUCCESS">Success</option>
+            <option value="PENDING">Pending</option>
+            <option value="REVIEW">Needs Review</option>
+            <option value="FAILED">Failed / Refunded</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Operator &amp; Number</th>
+            <th>Amount</th>
+            <th>Wallet / Cashback</th>
+            <th>Status</th>
+            <th>Order ID</th>
+            <th>UTR / Ref</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          {% for row in orders %}
+          {% set st = (row['status'] or '')|upper %}
+          {% set amt = (row['recharge_amount'] if row['recharge_amount'] is not none else 0) %}
+          {% set w_used = (row['wallet_used'] if row['wallet_used'] is not none else 0) %}
+          {% set cb = (row['cashback_earned'] if row['cashback_earned'] is not none else 0) %}
+          <tr class="hist-row" data-status="{{ st }}">
+            <td class="searchable-col"><strong>{{ row['operator'] }}</strong> &bull; {{ row['number'] }}</td>
+            <td>&#8377;{{ "%.2f"|format(amt|float) }}</td>
+            <td>
+              {% if w_used > 0 %}Used: ₹{{ "%.2f"|format(w_used|float) }}<br>{% endif %}
+              {% if 'SUCCESS' in st and cb > 0 %}<span style="color:#16a34a;font-weight:bold;">+₹{{ "%.2f"|format(cb|float) }} CB</span>{% else %}-{% endif %}
+            </td>
+            <td class="status-cell">
+              {% if 'SUCCESS' in st %}
+                <span class="badge ok">SUCCESS</span>
+              {% elif 'PENDING' in st %}
+                <span class="badge pend">{{ st }}</span>
+              {% elif 'REVIEW' in st %}
+                <span class="badge review">NEEDS REVIEW</span>
+              {% else %}
+                <span class="badge fail">{{ st or 'FAILED' }}</span>
+              {% endif %}
+            </td>
+            <td class="order-id-col">{{ row['local_order_id'] }}</td>
+            <td class="utr-col">{{ row['utr'] or '-' }}</td>
+            <td>{{ row['created_at'] if 'created_at' in row.keys() else '' }}</td>
+            <td>
+              {% if st == 'RECHARGE_PENDING' %}
+                <button type="button" class="check-btn" data-order-id="{{ row['local_order_id'] }}" onclick="refreshStatus(this)">Check Status</button>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8">No recharge history found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function filterHistory() {
+      const q = (document.getElementById('historySearch').value || '').toLowerCase().trim();
+      const stFilter = (document.getElementById('statusFilter').value || '').toUpperCase();
+      document.querySelectorAll('.hist-row').forEach(tr => {
+        const text = (tr.textContent || '').toLowerCase();
+        const st = (tr.getAttribute('data-status') || '').toUpperCase();
+        const matchText = !q || text.includes(q);
+        const matchSt = !stFilter || st.includes(stFilter) || (stFilter === 'FAILED' && st.includes('REFUND'));
+        tr.style.display = (matchText && matchSt) ? '' : 'none';
+      });
+    }
+
+    function refreshStatus(btn) {
+      const orderId = btn ? (btn.getAttribute('data-order-id') || '') : '';
+      if (!orderId) return;
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      fetch('/recharge/status/' + encodeURIComponent(orderId))
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.status) {
+            location.reload();
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Check Status';
+          }
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.textContent = 'Check Status';
+        });
+    }
+  </script>
+</body>
+</html>

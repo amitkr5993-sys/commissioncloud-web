@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recharge Admin Panel - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding: 20px; }
+
+        .container { max-width: 980px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
+        .title { font-size: 16px; font-weight: 700; color: #1e293b; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .refund-toggle-btn { background: #16a34a; color: #ffffff; border: none; font-weight: 700; font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+        .refund-toggle-btn:hover { background: #15803d; }
+        .refund-toggle-btn.active { background: #7c3aed; }
+        .home-btn { color: #7c3aed; text-decoration: none; font-weight: 700; font-size: 13px; background: #f5f3ff; padding: 6px 12px; border-radius: 8px; border: 1px solid #ddd6fe; }
+
+        /* Main 5 Services Grid */
+        .service-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+        @media (max-width: 600px) { .service-grid { grid-template-columns: repeat(3, 1fr); } }
+        .serv-card { background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 10px 6px; border-radius: 10px; text-align: center; font-weight: 600; font-size: 12px; cursor: pointer; color: #334155; transition: 0.2s; }
+        .serv-card:hover { border-color: #7c3aed; background: #f5f3ff; color: #7c3aed; }
+        .serv-card.active { border-color: #7c3aed; background: #7c3aed; color: #ffffff; }
+
+        /* Sub-operators Grid */
+        .sub-operator-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; background: #f1f5f9; padding: 8px; border-radius: 10px; }
+        @media (max-width: 600px) { .sub-operator-grid { grid-template-columns: repeat(2, 1fr); } }
+        .sub-card { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 4px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 11px; cursor: pointer; color: #475569; }
+        .sub-card:hover { border-color: #7c3aed; color: #7c3aed; }
+        .sub-card.active-sub { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
+
+        /* Plan Categories */
+        .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
+        .cat-card { background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px 4px; border-radius: 8px; text-align: center; font-weight: 600; font-size: 11px; cursor: pointer; color: #334155; }
+        .cat-card:hover { border-color: #7c3aed; color: #7c3aed; background: #f5f3ff; }
+        .cat-card.active-cat { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
+
+        /* Panels */
+        .panel-box { border-top: 1px solid #e2e8f0; padding-top: 14px; display: none; }
+        .panel-box.active-panel { display: block; }
+        .sub-panel { display: none; }
+        .sub-panel.active-sub-panel { display: block; }
+        .cat-panel { display: none; }
+        .cat-panel.active-cat-panel { display: block; }
+
+        .section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+        .helper-note { font-size: 11px; color: #64748b; margin-bottom: 10px; background: #f8fafc; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+
+        /* Bulk Import Box */
+        .bulk-box { background: #f8fafc; border: 1.5px dashed #cbd5e1; padding: 10px; border-radius: 10px; margin-bottom: 12px; }
+        .bulk-textarea { width: 100%; height: 65px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; resize: none; outline: none; background: #fff; margin-bottom: 6px; }
+        .bulk-textarea:focus { border-color: #7c3aed; }
+        .bulk-btn { background: #7c3aed; color: white; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 11px; cursor: pointer; }
+        .bulk-btn:hover { background: #6d28d9; }
+
+        /* Search Bar */
+        .search-box { position: relative; margin-bottom: 10px; }
+        .search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; outline: none; background: #f8fafc; color: #0f172a; }
+        .search-input:focus { border-color: #7c3aed; background: #fff; }
+        .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: #64748b; }
+
+        /* Item List */
+        .item-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+        .item-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 8px; }
+        .item-info { font-size: 12px; color: #334155; font-weight: 600; }
+        .item-sub { font-size: 10px; color: #64748b; font-weight: 500; }
+
+        .delete-btn { background: #fee2e2; color: #dc2626; border: none; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+        .delete-btn:hover { background: #dc2626; color: #fff; }
+
+        /* Refund & Review Table */
+        .refund-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .refund-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+        .refund-table th, .refund-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap; }
+        .refund-table th { background: #f8fafc; font-weight: 700; color: #334155; }
+        .action-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .approve-btn { background: #2563eb; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .approve-btn:hover { background: #1d4ed8; }
+        .refund-btn { background: #16a34a; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .refund-btn:hover { background: #15803d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="title">⚡ Recharge Admin Panel (A1Topup)</div>
+        <div class="header-actions">
+            <button type="button" class="refund-toggle-btn" data-serv="refund" onclick="switchService('refund', this)">💼 Agent Refund</button>
+            <a href="/recharge" class="home-btn">← Recharge</a>
+        </div>
+    </div>
+
+    <!-- 1. मुख्य 5 रिचार्ज सर्विसेज -->
+    <div class="service-grid">
+        <div class="serv-card active" data-serv="mobile" onclick="switchService('mobile', this)">📱 Mobile</div>
+        <div class="serv-card" data-serv="dth" onclick="switchService('dth', this)">📺 DTH</div>
+        <div class="serv-card" data-serv="electricity" onclick="switchService('electricity', this)">⚡ Electricity</div>
+        <div class="serv-card" data-serv="gas" onclick="switchService('gas', this)">🛢️ Gas</div>
+        <div class="serv-card" data-serv="fastag" onclick="switchService('fastag', this)">🚗 FASTag</div>
+    </div>
+
+    <!-- AGENT REFUND / REVIEW PANEL -->
+    <div id="panel-refund" class="panel-box">
+        <div class="section-title">💼 Agent Refund &amp; Review — Stuck / Review / Pending / Failed Orders</div>
+        <div class="helper-note">
+            Jis order ka payment/message match ho chuka hai ya review mein ruka hai, use <b>Approve &amp; Recharge</b> se chalayein; aur jahan refund dena ho, wahan <b>Cashback/Wallet</b> mein refund karein.
+        </div>
+        <div class="refund-table-wrap">
+            <table class="refund-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>User ID</th>
+                        <th>Operator &amp; Number</th>
+                        <th>Payable / Cut</th>
+                        <th>UTR / Txn</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in stuck_orders or [] %}
+                    {% set pay_amt = (o['payable_amount'] if o['payable_amount'] is not none else o['recharge_amount']) or 0 %}
+                    <tr>
+                        <td>{{ o['local_order_id'] }}</td>
+                        <td>{{ o['user_id'] }}</td>
+                        <td>{{ o['operator'] }} • {{ o['number'] }}</td>
+                        <td>₹{{ "%.2f"|format(pay_amt) }}</td>
+                        <td>{{ o['utr'] or '-' }}</td>
+                        <td>{{ o['status'] }}</td>
+                        <td>
+                            <div class="action-group">
+                                {% if o['status'] in ['NEEDS_REVIEW', 'PENDING_PAYMENT'] %}
+                                <form action="/admin/approve-recharge" method="POST" style="margin:0;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="order_id" value="{{ o['local_order_id'] }}">
+                                    <input type="hidden" name="utr" value="{{ o['utr'] or '' }}">
+                                    <button type="submit" class="approve-btn">Approve &amp; Recharge</button>
+                                </form>
+                                {% endif %}
+
+                                {% if o['status'] != 'REFUNDED' %}
+                                <form action="/admin/refund-wallet" method="POST" style="margin:0;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="order_id" value="{{ o['local_order_id'] }}">
+                                    <input type="hidden" name="user_id" value="{{ o['user_id'] }}">
+                                    <input type="hidden" name="amount" value="{{ pay_amt }}">
+                                    <button type="submit" class="refund-btn">Add ₹{{ "%.2f"|format(pay_amt) }} to Cashback</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7">Koi ruka hua ya fail order nahi hai.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. MOBILE PANEL -->
+    <div id="panel-mobile" class="panel-box active-panel">
+        <div class="sub-operator-grid">
+            <div class="sub-card active-sub" data-sub="jio" onclick="switchSubOp('jio', this)">Jio (RC)</div>
+            <div class="sub-card" data-sub="airtel" onclick="switchSubOp('airtel', this)">Airtel (A)</div>
+            <div class="sub-card" data-sub="vi" onclick="switchSubOp('vi', this)">Vi (V)</div>
+            <div class="sub-card" data-sub="bsnl-combo" onclick="switchSubOp('bsnl-combo', this)">BSNL Combo (BR)</div>
+            <div class="sub-card" data-sub="bsnl-topup" onclick="switchSubOp('bsnl-topup', this)">BSNL Topup (BT)</div>
+        </div>
+
+        <!-- JIO -->
+        <div id="sub-jio" class="sub-panel active-sub-panel">
+            <div class="cat-grid">
+                <div class="cat-card active-cat" onclick="switchCat('jio-5g', this)">⚡ 5G / Popular</div>
+                <div class="cat-card" onclick="switchCat('jio-data', this)">📊 Data Packs</div>
+                <div class="cat-card" onclick="switchCat('jio-voice', this)">📞 Voice / TRAI</div>
+                <div class="cat-card" onclick="switchCat('jio-ent', this)">🎮 Entertainment</div>
+            </div>
+            <div id="cat-jio-5g" class="cat-panel active-cat-panel">
+                <div class="section-title">Jio 5G &amp; Popular Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-jio-5g" placeholder="Jio 5G/Popular प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-jio-5g', 'Jio', '5g')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Jio 5G plans..." oninput="filterItems(this, 'cat-jio-5g')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'jio' and p.category | trim | lower == '5g' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Jio • 5g</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-jio-data" class="cat-panel">
+                <div class="section-title">Jio Data Packs</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-jio-data" placeholder="Jio Data पैक्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-jio-data', 'Jio', 'data')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Jio data..." oninput="filterItems(this, 'cat-jio-data')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'jio' and p.category | trim | lower == 'data' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Jio • data</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-jio-voice" class="cat-panel">
+                <div class="section-title">Jio Voice / TRAI Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-jio-voice" placeholder="Jio Voice प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-jio-voice', 'Jio', 'voice')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Jio voice..." oninput="filterItems(this, 'cat-jio-voice')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'jio' and p.category | trim | lower == 'voice' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Jio • voice</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-jio-ent" class="cat-panel">
+                <div class="section-title">Jio Entertainment Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-jio-ent" placeholder="Jio Entertainment प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-jio-ent', 'Jio', 'ent')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Jio ent..." oninput="filterItems(this, 'cat-jio-ent')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'jio' and p.category | trim | lower == 'ent' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Jio • ent</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- AIRTEL -->
+        <div id="sub-airtel" class="sub-panel">
+            <div class="cat-grid">
+                <div class="cat-card active-cat" onclick="switchCat('airtel-5g', this)">⚡ 5G / Popular</div>
+                <div class="cat-card" onclick="switchCat('airtel-data', this)">📊 Data Packs</div>
+                <div class="cat-card" onclick="switchCat('airtel-voice', this)">📞 Voice / TRAI</div>
+                <div class="cat-card" onclick="switchCat('airtel-ent', this)">🎮 Entertainment</div>
+            </div>
+            <div id="cat-airtel-5g" class="cat-panel active-cat-panel">
+                <div class="section-title">Airtel 5G &amp; Popular Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-airtel-5g" placeholder="Airtel 5G/Popular प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-airtel-5g', 'Airtel', '5g')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Airtel 5G..." oninput="filterItems(this, 'cat-airtel-5g')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'airtel' and p.category | trim | lower == '5g' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Airtel • 5g</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-airtel-data" class="cat-panel">
+                <div class="section-title">Airtel Data Packs</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-airtel-data" placeholder="Airtel Data पैक्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-airtel-data', 'Airtel', 'data')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Airtel data..." oninput="filterItems(this, 'cat-airtel-data')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'airtel' and p.category | trim | lower == 'data' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Airtel • data</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-airtel-voice" class="cat-panel">
+                <div class="section-title">Airtel Voice / TRAI Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-airtel-voice" placeholder="Airtel Voice प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-airtel-voice', 'Airtel', 'voice')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Airtel voice..." oninput="filterItems(this, 'cat-airtel-voice')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'airtel' and p.category | trim | lower == 'voice' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Airtel • voice</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-airtel-ent" class="cat-panel">
+                <div class="section-title">Airtel Entertainment Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-airtel-ent" placeholder="Airtel Entertainment प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-airtel-ent', 'Airtel', 'ent')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Airtel ent..." oninput="filterItems(this, 'cat-airtel-ent')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'airtel' and p.category | trim | lower == 'ent' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Airtel • ent</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- VI -->
+        <div id="sub-vi" class="sub-panel">
+            <div class="cat-grid">
+                <div class="cat-card active-cat" onclick="switchCat('vi-5g', this)">⚡ Popular</div>
+                <div class="cat-card" onclick="switchCat('vi-data', this)">📊 Data Packs</div>
+                <div class="cat-card" onclick="switchCat('vi-voice', this)">📞 Voice / TRAI</div>
+                <div class="cat-card" onclick="switchCat('vi-ent', this)">🎮 Entertainment</div>
+            </div>
+            <div id="cat-vi-5g" class="cat-panel active-cat-panel">
+                <div class="section-title">Vi Popular Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-vi-5g" placeholder="Vi Popular प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-vi-5g', 'Vi', '5g')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Vi plans..." oninput="filterItems(this, 'cat-vi-5g')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'vi' and p.category | trim | lower == '5g' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Vi • 5g</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-vi-data" class="cat-panel">
+                <div class="section-title">Vi Data Packs</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-vi-data" placeholder="Vi Data पैक्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-vi-data', 'Vi', 'data')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Vi data..." oninput="filterItems(this, 'cat-vi-data')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'vi' and p.category | trim | lower == 'data' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Vi • data</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-vi-voice" class="cat-panel">
+                <div class="section-title">Vi Voice / TRAI Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-vi-voice" placeholder="Vi Voice प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-vi-voice', 'Vi', 'voice')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Vi voice..." oninput="filterItems(this, 'cat-vi-voice')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'vi' and p.category | trim | lower == 'voice' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Vi • voice</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-vi-ent" class="cat-panel">
+                <div class="section-title">Vi Entertainment Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-vi-ent" placeholder="Vi Entertainment प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-vi-ent', 'Vi', 'ent')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search Vi ent..." oninput="filterItems(this, 'cat-vi-ent')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'vi' and p.category | trim | lower == 'ent' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Vi • ent</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- BSNL COMBO (BR) -->
+        <div id="sub-bsnl-combo" class="sub-panel">
+            <div class="helper-note">BSNL Combo / STV plans map to A1Topup code <b>BR</b>.</div>
+            <div class="cat-grid">
+                <div class="cat-card active-cat" onclick="switchCat('bsnlc-5g', this)">⚡ Popular</div>
+                <div class="cat-card" onclick="switchCat('bsnlc-data', this)">📊 Data Packs</div>
+                <div class="cat-card" onclick="switchCat('bsnlc-voice', this)">📞 Voice / TRAI</div>
+                <div class="cat-card" onclick="switchCat('bsnlc-ent', this)">🎮 Entertainment</div>
+            </div>
+            <div id="cat-bsnlc-5g" class="cat-panel active-cat-panel">
+                <div class="section-title">BSNL Combo Popular Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-bsnlc-5g" placeholder="BSNL Combo प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-bsnlc-5g', 'BSNL Combo', '5g')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search BSNL Combo..." oninput="filterItems(this, 'cat-bsnlc-5g')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower in ['bsnl combo', 'bsnl'] and p.category | trim | lower == '5g' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">BSNL Combo • 5g</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-bsnlc-data" class="cat-panel">
+                <div class="section-title">BSNL Combo Data Packs</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-bsnlc-data" placeholder="BSNL Data पैक्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-bsnlc-data', 'BSNL Combo', 'data')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search BSNL data..." oninput="filterItems(this, 'cat-bsnlc-data')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower in ['bsnl combo', 'bsnl'] and p.category | trim | lower == 'data' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">BSNL Combo • data</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-bsnlc-voice" class="cat-panel">
+                <div class="section-title">BSNL Combo Voice / TRAI</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-bsnlc-voice" placeholder="BSNL Voice प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-bsnlc-voice', 'BSNL Combo', 'voice')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search BSNL voice..." oninput="filterItems(this, 'cat-bsnlc-voice')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower in ['bsnl combo', 'bsnl'] and p.category | trim | lower == 'voice' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">BSNL Combo • voice</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="cat-bsnlc-ent" class="cat-panel">
+                <div class="section-title">BSNL Combo Entertainment</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-bsnlc-ent" placeholder="BSNL Entertainment प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-bsnlc-ent', 'BSNL Combo', 'ent')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search BSNL ent..." oninput="filterItems(this, 'cat-bsnlc-ent')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower in ['bsnl combo', 'bsnl'] and p.category | trim | lower == 'ent' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">BSNL Combo • ent</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- BSNL TOPUP (BT) -->
+        <div id="sub-bsnl-topup" class="sub-panel">
+            <div class="helper-note">BSNL Topup / Talktime plans map to A1Topup code <b>BT</b>.</div>
+            <div id="cat-bsnlt-topup" class="cat-panel active-cat-panel">
+                <div class="section-title">BSNL Topup Plans</div>
+                <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-cat-bsnlt-topup" placeholder="BSNL Topup अमाउंट/प्लान यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('cat-bsnlt-topup', 'BSNL Topup', 'topup')">+ Bulk Add</button></div>
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search BSNL topup..." oninput="filterItems(this, 'cat-bsnlt-topup')"></div>
+                <div class="item-list">
+                    {% for p in saved_plans if p.operator | trim | lower == 'bsnl topup' %}
+                    <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                        <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">BSNL Topup • BT</div></div>
+                        <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. DTH PANEL (5 Fixed Operators) -->
+    <div id="panel-dth" class="panel-box">
+        <div class="helper-note">DTH Operators: Airtel Digital DTH TV (ATV), DISH TV (DTV), SUNDIRECT DTH TV (STV), TATASKY DTH TV (TTV), VIDEOCON DTH TV (VTV).</div>
+        <div class="section-title">DTH Plans Management</div>
+        <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-panel-dth" placeholder="DTH प्लान्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('panel-dth', 'DTH', 'dth')">+ Bulk Add</button></div>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search DTH plans..." oninput="filterItems(this, 'panel-dth')"></div>
+        <div class="item-list">
+            {% for p in saved_plans if p.operator | trim | lower == 'dth' %}
+            <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">DTH</div></div>
+                <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 4. ELECTRICITY PANEL (90 Boards) -->
+    <div id="panel-electricity" class="panel-box">
+        <div class="helper-note">All 90 A1Topup Electricity boards (including North Bihar NBE, South Bihar SBE, Muzaffarpur MVV) are mapped in backend.</div>
+        <div class="section-title">Electricity Boards / Notes</div>
+        <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-panel-electricity" placeholder="Electricity बोर्ड या नोट्स यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('panel-electricity', 'Electricity', 'electricity')">+ Bulk Add</button></div>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search boards..." oninput="filterItems(this, 'panel-electricity')"></div>
+        <div class="item-list">
+            {% for p in saved_plans if p.operator | trim | lower == 'electricity' %}
+            <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Electricity</div></div>
+                <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 5. GAS PANEL (5 Operators) -->
+    <div id="panel-gas" class="panel-box">
+        <div class="helper-note">Gas Operators: Adani Gas (AG), Gujarat Gas (GG), HPCL (HPCLGC), Indraprastha Gas (IG), Mahanagar Gas (MG).</div>
+        <div class="section-title">Gas Providers Management</div>
+        <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-panel-gas" placeholder="Gas विवरण यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('panel-gas', 'Gas', 'gas')">+ Bulk Add</button></div>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search gas..." oninput="filterItems(this, 'panel-gas')"></div>
+        <div class="item-list">
+            {% for p in saved_plans if p.operator | trim | lower == 'gas' %}
+            <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">Gas</div></div>
+                <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 6. FASTAG PANEL (16 Issuers) -->
+    <div id="panel-fastag" class="panel-box">
+        <div class="helper-note">All 16 A1Topup FASTag issuers are mapped in backend.</div>
+        <div class="section-title">FASTag Issuers Management</div>
+        <div class="bulk-box"><textarea class="bulk-textarea" id="bulk-panel-fastag" placeholder="FASTag विवरण यहाँ पेस्ट करें..."></textarea><button class="bulk-btn" onclick="addBulkItems('panel-fastag', 'FASTag', 'fastag')">+ Bulk Add</button></div>
+        <div class="search-box"><span class="search-icon">🔍</span><input type="text" class="search-input" placeholder="Search fastag..." oninput="filterItems(this, 'panel-fastag')"></div>
+        <div class="item-list">
+            {% for p in saved_plans if p.operator | trim | lower == 'fastag' %}
+            <div class="item-row" data-search="{{ p.plan_text | lower }}">
+                <div><div class="item-info">{{ p.plan_text }}</div><div class="item-sub">FASTag</div></div>
+                <button class="delete-btn" onclick="deletePlan('{{ p.id }}', this)">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    const CSRF_TOKEN = "{{ csrf_token }}";
+
+    function switchService(servKey, element) {
+        document.querySelectorAll('.serv-card').forEach(card => card.classList.remove('active'));
+        const refundBtn = document.querySelector('.refund-toggle-btn');
+        if (refundBtn) refundBtn.classList.remove('active');
+
+        if (element) {
+            element.classList.add('active');
+        } else {
+            const matching = document.querySelector(`.serv-card[data-serv="${servKey}"], .refund-toggle-btn[data-serv="${servKey}"]`);
+            if (matching) matching.classList.add('active');
+        }
+
+        document.querySelectorAll('.panel-box').forEach(panel => panel.classList.remove('active-panel'));
+        const target = document.getElementById('panel-' + servKey);
+        if (target) target.classList.add('active-panel');
+        localStorage.setItem('cc_admin_serv', servKey);
+    }
+
+    function switchSubOp(subKey, element) {
+        document.querySelectorAll('.sub-card').forEach(card => card.classList.remove('active-sub'));
+        if (element) element.classList.add('active-sub');
+        document.querySelectorAll('.sub-panel').forEach(panel => panel.classList.remove('active-sub-panel'));
+        const target = document.getElementById('sub-' + subKey);
+        if (target) target.classList.add('active-sub-panel');
+        localStorage.setItem('cc_admin_sub', subKey);
+    }
+
+    function switchCat(catKey, element) {
+        const parentSub = element ? element.closest('.sub-panel') : document.getElementById('cat-' + catKey)?.closest('.sub-panel');
+        if (parentSub) {
+            parentSub.querySelectorAll('.cat-card').forEach(card => card.classList.remove('active-cat'));
+            if (element) element.classList.add('active-cat');
+            parentSub.querySelectorAll('.cat-panel').forEach(panel => panel.classList.remove('active-cat-panel'));
+        }
+        const target = document.getElementById('cat-' + catKey);
+        if (target) target.classList.add('active-cat-panel');
+        localStorage.setItem('cc_admin_cat', catKey);
+    }
+
+    function addBulkItems(containerId, explicitOperator, explicitCategory) {
+        const textarea = document.getElementById('bulk-' + containerId);
+        if (!textarea) return;
+        const text = textarea.value.trim();
+        if (!text) return;
+
+        const formData = new FormData();
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('operator', explicitOperator);
+        formData.append('category', explicitCategory);
+        formData.append('plans_data', text);
+
+        fetch('/admin/save-plans', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                textarea.value = '';
+                location.reload();
+            } else {
+                alert('Error saving plans!');
+            }
+        });
+    }
+
+    function deletePlan(id, btn) {
+        const formData = new FormData();
+        formData.append('csrf_token', CSRF_TOKEN);
+
+        fetch('/admin/delete-plan/' + id, {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                const row = btn.closest('.item-row');
+                row.style.transition = '0.3s';
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            } else {
+                alert('Error deleting plan!');
+            }
+        });
+    }
+
+    function filterItems(input, containerId) {
+        const query = input.value.toLowerCase().trim();
+        const container = document.getElementById(containerId) || input.closest('.cat-panel') || input.closest('.panel-box');
+        const rows = container.querySelectorAll('.item-row');
+
+        rows.forEach(row => {
+            const searchText = row.getAttribute('data-search') || '';
+            row.style.display = searchText.includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedServ = localStorage.getItem('cc_admin_serv');
+        const savedSub = localStorage.getItem('cc_admin_sub');
+        const savedCat = localStorage.getItem('cc_admin_cat');
+
+        if (savedServ) {
+            const sCard = document.querySelector(`.serv-card[data-serv="${savedServ}"], .refund-toggle-btn[data-serv="${savedServ}"]`);
+            switchService(savedServ, sCard);
+        }
+        if (savedSub) {
+            const subCard = document.querySelector(`.sub-card[data-sub="${savedSub}"]`);
+            if (subCard) switchSubOp(savedSub, subCard);
+        }
+        if (savedCat) {
+            const cPanel = document.getElementById('cat-' + savedCat);
+            if (cPanel) {
+                const subPanel = cPanel.closest('.sub-panel');
+                if (subPanel) {
+                    subPanel.querySelectorAll('.cat-panel').forEach(p => p.classList.remove('active-cat-panel'));
+                }
+                cPanel.classList.add('active-cat-panel');
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

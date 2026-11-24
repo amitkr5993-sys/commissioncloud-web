@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Plan - Commission Cloud</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background: #f8fafc; color: #0f172a; padding-bottom: 70px; }
+
+        .top-bar { background: #7c3aed; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .back-btn { color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; }
+        .brand-container { display: flex; align-items: center; gap: 8px; }
+        .app-logo { width: 32px; height: 32px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .page-title { font-size: 16px; font-weight: 700; color: #fff; }
+
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+        .info-card { background: #ffffff; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .info-left { font-size: 13px; color: #64748b; font-weight: 600; }
+        .info-number { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+        .change-btn { background: #f1f5f9; color: #7c3aed; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; border: 1px solid #cbd5e1; }
+
+        .wallet-bar { background: #0f172a; color: #fff; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .wallet-bar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; color: #4ade80; }
+
+        .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+        .cat-tab { background: #ffffff; border: 1.5px solid #cbd5e1; padding: 8px 4px; border-radius: 10px; text-align: center; font-weight: 700; font-size: 11px; cursor: pointer; color: #475569; }
+        .cat-tab.active-cat { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
+
+        .search-box-container { margin-bottom: 16px; }
+        .search-input { width: 100%; padding: 12px 16px 12px 40px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff; color: #0f172a; }
+        .search-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
+        .search-wrapper { position: relative; }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #64748b; }
+
+        .plans-container { display: flex; flex-direction: column; gap: 12px; }
+        .plan-card { background: #ffffff; border-radius: 16px; padding: 16px; border: 1.5px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .plan-details-col { flex: 1; min-width: 0; }
+        .plan-info { font-size: 14px; font-weight: 700; color: #0f172a; word-wrap: break-word; }
+        .plan-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .cb-pill { display: inline-block; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; margin-left: 6px; }
+
+        .ott-icons-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .ott-chip { display: inline-flex; align-items: center; gap: 5px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 8px 2px 3px; font-size: 11px; font-weight: 700; color: #1e293b; }
+        .ott-round-holder { width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid #cbd5e1; flex-shrink: 0; }
+        .ott-round-img { width: 100%; height: 100%; object-fit: contain; }
+        .ott-red-fallback { display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #fee2e2; color: #dc2626; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+
+        .plan-book-btn { background: #7c3aed; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; flex-shrink: 0; }
+        .plan-book-btn:hover { background: #6d28d9; }
+        .plan-book-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body id="planPageMeta"
+      data-operator="{{ (operator or '') | trim | lower }}"
+      data-cb-rate="{{ cashback_rate or 0 }}">
+
+<div class="top-bar">
+    <a href="/recharge" class="back-btn">← Back</a>
+    <div class="brand-container">
+        <div class="app-logo">📱</div>
+        <div class="page-title">Select Plan</div>
+    </div>
+    <div style="width: 24px;"></div>
+</div>
+
+<div class="container">
+
+    <div class="info-card">
+        <div>
+            <div class="info-left">{{ operator }}{% if circle %} • {{ circle }}{% endif %}</div>
+            <div class="info-number">{{ mobile_number }}</div>
+        </div>
+        <a href="/recharge" class="change-btn">Change</a>
+    </div>
+
+    {% if (wallet_balance or 0) > 0 %}
+    <div class="wallet-bar">
+        <span>Cashback Wallet: ₹{{ "%.2f"|format(wallet_balance) }}</span>
+        <label>
+            <input type="checkbox" id="globalUseWallet" checked onchange="syncWalletInputs()">
+            Use Wallet
+        </label>
+    </div>
+    {% endif %}
+
+    <div class="cat-grid" id="catGridContainer">
+        <div class="cat-tab active-cat" onclick="switchCategory('5g', this)">⚡ 5G / Popular</div>
+        <div class="cat-tab" onclick="switchCategory('data', this)">📊 Data</div>
+        <div class="cat-tab" onclick="switchCategory('voice', this)">📞 Voice</div>
+        <div class="cat-tab" onclick="switchCategory('ent', this)">🎮 OTT/Ent</div>
+    </div>
+
+    <div class="search-box-container">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="planSearchInput" class="search-input" placeholder="Search plans..." oninput="filterPlans()">
+        </div>
+    </div>
+
+    <div class="plans-container" id="plansListContainer">
+        {% if plans %}
+            {% for p in plans %}
+            <div class="plan-card" data-category="{{ p.category | trim | lower }}" data-search="{{ p.plan_text | lower }}" data-raw="{{ p.plan_text }}">
+                <div class="plan-details-col">
+                    <div class="plan-info">{{ p.plan_text }}</div>
+                    <div class="plan-sub">{{ (p.category or 'PLAN') | upper }} Plan <span class="cb-pill"></span></div>
+                </div>
+                <form action="/recharge/initiate" method="POST" onsubmit="return prepareRecharge(this)">
+                    <input type="hidden" name="service_type" value="Mobile Prepaid">
+                    <input type="hidden" name="number" value="{{ mobile_number }}">
+                    <input type="hidden" name="operator" value="{{ operator }}">
+                    <input type="hidden" name="amount" class="plan-amount-input" value="">
+                    <input type="hidden" name="use_wallet" class="plan-wallet-input" value="on">
+                    <button type="submit" class="plan-book-btn">Recharge</button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 30px; color: #64748b; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;">
+                No plans added for this operator yet. Please add via Admin Panel.
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    let currentCategory = '5g';
+    const metaEl = document.getElementById('planPageMeta');
+    const currentOperator = (metaEl ? metaEl.getAttribute('data-operator') : '') || '';
+    const cashbackRate = parseFloat(metaEl ? metaEl.getAttribute('data-cb-rate') : '0') || 0;
+    const NON_MOBILE_OPERATORS = ['dth', 'electricity', 'gas', 'fastag'];
+
+    const OTT_PROVIDERS = [
+        { keys: ['hotstar', 'jiohotstar', 'disney'], name: 'Hotstar', domain: 'hotstar.com' },
+        { keys: ['jiocinema', 'jio cinema'], name: 'JioCinema', domain: 'jiocinema.com' },
+        { keys: ['jiotv', 'jio tv'], name: 'JioTV', domain: 'jio.com' },
+        { keys: ['canva'], name: 'Canva', domain: 'canva.com' },
+        { keys: ['netflix'], name: 'Netflix', domain: 'netflix.com' },
+        { keys: ['prime', 'amazon'], name: 'Prime', domain: 'primevideo.com' },
+        { keys: ['sony', 'sonyliv'], name: 'SonyLIV', domain: 'sonyliv.com' },
+        { keys: ['zee5', 'zee 5'], name: 'ZEE5', domain: 'zee5.com' },
+        { keys: ['5g'], name: '5G', domain: 'jio.com' }
+    ];
+
+    function syncWalletInputs() {
+        const cb = document.getElementById('globalUseWallet');
+        const checked = cb ? cb.checked : true;
+        document.querySelectorAll('.plan-wallet-input').forEach(inp => {
+            inp.value = checked ? 'on' : '';
+        });
+    }
+
+    function extractPlanAmount(rawText) {
+        const onPlanMatch = rawText.match(/(?:₹|rs\.?|inr)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:plan|pack|recharge)/i);
+        if (onPlanMatch) return onPlanMatch[1];
+
+        const currencyMatch = rawText.match(/(?:₹|rs\.?|inr)\s*([0-9]+(?:\.[0-9]{1,2})?)/i);
+        if (currencyMatch) return currencyMatch[1];
+
+        const slashPriceMatch = rawText.match(/\b([0-9]{1,5}(?:\.[0-9]{1,2})?)\s*(?:\/-|\/[0-9]+\s*d)/i);
+        if (slashPriceMatch) return slashPriceMatch[1];
+
+        const tokens = rawText.match(/[0-9]+(?:\.[0-9]{1,2})?(?:\s*[a-zA-Z]+)?/g) || [];
+        for (const tok of tokens) {
+            const low = tok.toLowerCase();
+            if (/\b(gb|mb|kb|day|days|min|mins|sms|5g|4g)\b/i.test(low)) continue;
+            const numMatch = tok.match(/^([0-9]+(?:\.[0-9]{1,2})?)/);
+            if (numMatch && parseFloat(numMatch[1]) > 0) {
+                return numMatch[1];
+            }
+        }
+        return '';
+    }
+
+    function renderPlanOttIcons() {
+        document.querySelectorAll('.plan-card').forEach(card => {
+            const infoEl = card.querySelector('.plan-info');
+            const detailsCol = card.querySelector('.plan-details-col');
+            if (!infoEl || !detailsCol) return;
+
+            const cleanedText = infoEl.textContent.replace(/\[span_\d+\]\(start_span\)\[span_\d+\]\(end_span\)\.?/g, '').trim();
+            infoEl.textContent = cleanedText;
+            card.setAttribute('data-raw', cleanedText);
+            card.setAttribute('data-search', cleanedText.toLowerCase());
+
+            const amtStr = extractPlanAmount(cleanedText);
+            const pill = card.querySelector('.cb-pill');
+            if (pill && amtStr && cashbackRate > 0) {
+                const cbVal = ((parseFloat(amtStr) * cashbackRate) / 100).toFixed(2);
+                pill.textContent = `+₹${cbVal} Cashback`;
+            } else if (pill) {
+                pill.style.display = 'none';
+            }
+
+            const lowerText = cleanedText.toLowerCase();
+            const matches = OTT_PROVIDERS.filter(item => item.keys.some(k => lowerText.includes(k)));
+
+            if (matches.length > 0 && !detailsCol.querySelector('.ott-icons-row')) {
+                const row = document.createElement('div');
+                row.className = 'ott-icons-row';
+
+                matches.forEach(item => {
+                    const chip = document.createElement('span');
+                    chip.className = 'ott-chip';
+
+                    const holder = document.createElement('span');
+                    holder.className = 'ott-round-holder';
+
+                    const img = document.createElement('img');
+                    img.className = 'ott-round-img';
+                    img.src = `https://www.google.com/s2/favicons?domain=${item.domain}&sz=128`;
+                    img.alt = item.name;
+
+                    const fallback = document.createElement('span');
+                    fallback.className = 'ott-red-fallback';
+                    fallback.textContent = item.name.charAt(0);
+
+                    img.onerror = function () {
+                        this.style.display = 'none';
+                        fallback.style.display = 'flex';
+                    };
+
+                    holder.appendChild(img);
+                    holder.appendChild(fallback);
+
+                    const label = document.createElement('span');
+                    label.textContent = item.name;
+
+                    chip.appendChild(holder);
+                    chip.appendChild(label);
+                    row.appendChild(chip);
+                });
+
+                detailsCol.appendChild(row);
+            }
+        });
+    }
+
+    function resetBookButtons() {
+        document.querySelectorAll('.plan-book-btn').forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = 'Recharge';
+        });
+    }
+
+    window.addEventListener('pageshow', resetBookButtons);
+
+    window.onload = function() {
+        if (NON_MOBILE_OPERATORS.includes(currentOperator)) {
+            const catGrid = document.getElementById('catGridContainer');
+            if (catGrid) catGrid.style.display = 'none';
+            currentCategory = '';
+        }
+        syncWalletInputs();
+        renderPlanOttIcons();
+        filterAndDisplay();
+    };
+
+    function switchCategory(catName, element) {
+        document.querySelectorAll('.cat-tab').forEach(tab => tab.classList.remove('active-cat'));
+        if (element) element.classList.add('active-cat');
+        currentCategory = catName.toLowerCase();
+        filterAndDisplay();
+    }
+
+    function filterAndDisplay() {
+        const query = document.getElementById('planSearchInput').value.toLowerCase().trim();
+
+        document.querySelectorAll('.plan-card').forEach(card => {
+            const cat = (card.getAttribute('data-category') || '').toLowerCase();
+            const text = (card.getAttribute('data-search') || '').toLowerCase();
+
+            let matchesCategory = false;
+            if (NON_MOBILE_OPERATORS.includes(currentOperator) || !cat || cat === 'popular' || cat === 'all' || cat === 'general') {
+                matchesCategory = true;
+            } else if (currentCategory === '5g') {
+                matchesCategory = ['5g', 'popular', 'topup', 'combo', 'unlimited', 'general', ''].includes(cat);
+            } else {
+                matchesCategory = (cat === currentCategory);
+            }
+
+            const matchesQuery = !query || text.includes(query);
+            card.style.display = (matchesCategory && matchesQuery) ? 'flex' : 'none';
+        });
+    }
+
+    function filterPlans() {
+        filterAndDisplay();
+    }
+
+    function prepareRecharge(form) {
+        syncWalletInputs();
+        const card = form.closest('.plan-card');
+        const rawText = card ? (card.getAttribute('data-raw') || '') : '';
+        const amount = extractPlanAmount(rawText);
+
+        if (!amount || parseFloat(amount) <= 0) {
+            alert("इस प्लान से राशि (Amount) नहीं मिल सकी। कृपया प्लान टेक्स्ट में ₹ या राशि लिखें।");
+            return false;
+        }
+
+        form.querySelector('.plan-amount-input').value = amount;
+        const btn = form.querySelector('.plan-book-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+        }
+        return true;
+    }
+</script>
+
+</body>
+</html>
